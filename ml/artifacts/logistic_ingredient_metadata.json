@@ -1,0 +1,27 @@
+{
+  "algorithm": "LogisticRegression_CharWb_TFIDF",
+  "dataset": "C:\\Users\\HP\\Downloads\\Project\\ml\\data\\training_dataset.jsonl",
+  "rows": 783,
+  "total_rows_seen": 9408,
+  "train_size": 5046,
+  "test_size": 384,
+  "classes": [
+    "colorants",
+    "dairy",
+    "eggs",
+    "fragrance",
+    "gluten",
+    "parabens",
+    "peanuts",
+    "preservatives",
+    "sesame",
+    "shellfish",
+    "soy",
+    "sulfates",
+    "tree-nuts"
+  ],
+  "model_path": "C:\\Users\\HP\\Downloads\\Project\\ml\\artifacts\\logistic_ingredient_model.joblib",
+  "evaluation_mode": "query_holdout_with_ocr_noise_without_seed_in_eval",
+  "macro_f1": 0.844941537358127,
+  "weighted_f1": 0.8247878160276984
+}
