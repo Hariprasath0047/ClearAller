@@ -707,7 +707,7 @@ export default function App() {
                                   active ? "bg-[#2563eb] text-white" : "bg-[#edf4f8] text-ink/70"
                                 }`}
                               >
-                                {option}
+                                {option.replace(/-/g, " ")}
                               </button>
                             );
                           })}

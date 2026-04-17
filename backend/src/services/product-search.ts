@@ -22,7 +22,7 @@ type ProfilePreferences = {
   gender: string;
   skinType: string;
   hairType: string;
-  cosmeticConcern: string;
+  cosmeticConcerns: string[];
 };
 
 type CandidateProduct = {
@@ -199,6 +199,20 @@ function readPreference(medicalConditions: unknown, tag: string) {
   return normalizeValue(found?.name);
 }
 
+function readPreferences(medicalConditions: unknown, tag: string) {
+  if (!Array.isArray(medicalConditions)) {
+    return [];
+  }
+
+  return medicalConditions
+    .filter(
+      (item): item is { name?: string; note?: string } =>
+        typeof item === "object" && item !== null && "note" in item && (item as { note?: string }).note === tag
+    )
+    .map((item) => normalizeValue(item.name))
+    .filter(Boolean);
+}
+
 function isCosmeticQuery(query: string) {
   const normalized = query.toLowerCase();
   return ["shampoo", "conditioner", "serum", "lotion", "cleanser", "face wash", "body wash", "facewash", "sunscreen", "moisturizer", "soap", "cream", "toner", "skincare"].some((token) =>
@@ -334,9 +348,12 @@ function cosmeticPreferenceBoost(product: ProductResult, query: string, preferen
       reasons.push(`${preference.hairType} hair`);
     }
 
-    if (preference.cosmeticConcern && preference.cosmeticConcern !== "none" && haystack.includes(preference.cosmeticConcern.replace("-", " "))) {
-      score += 12;
-      reasons.push(preference.cosmeticConcern.replace("-", " "));
+    for (const concern of preference.cosmeticConcerns) {
+      const normalizedConcern = concern.replace(/-/g, " ");
+      if (normalizedConcern && normalizedConcern !== "none" && haystack.includes(normalizedConcern)) {
+        score += 12;
+        reasons.push(normalizedConcern);
+      }
     }
   }
 
@@ -442,7 +459,7 @@ export async function searchAndEvaluateProducts(params: {
     gender: readPreference(profile.medicalConditions, "gender"),
     skinType: readPreference(profile.medicalConditions, "skinType"),
     hairType: readPreference(profile.medicalConditions, "hairType"),
-      cosmeticConcern: readPreference(profile.medicalConditions, "cosmeticConcern")
+    cosmeticConcerns: readPreferences(profile.medicalConditions, "cosmeticConcern")
   }));
 
   const cacheKey = JSON.stringify({
@@ -457,7 +474,7 @@ export async function searchAndEvaluateProducts(params: {
       gender: preference.gender,
       skinType: preference.skinType,
       hairType: preference.hairType,
-      cosmeticConcern: preference.cosmeticConcern
+      cosmeticConcerns: preference.cosmeticConcerns
     }))
   });
   const cached = getCachedValue(analysisCache, cacheKey);
