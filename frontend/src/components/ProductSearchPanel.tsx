@@ -280,7 +280,7 @@ export function ProductSearchPanel({
               <div className="mt-4 flex flex-wrap gap-2">
                 {entry.predictions.map((prediction) => (
                   <span key={`${entry.product.id}-${prediction.profileId}`} className="rounded-full bg-white px-3 py-2 text-xs text-ink/65 shadow-sm">
-                    {prediction.profileName}: approved
+                    {prediction.profileName}: {prediction.rating === "Safe" ? "approved" : prediction.rating}
                   </span>
                 ))}
               </div>

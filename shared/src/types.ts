@@ -63,7 +63,7 @@ export interface MlSignal {
 export interface SafetyPrediction {
   profileId: string;
   profileName: string;
-  rating: "Safe" | "Moderate Risk" | "High Risk";
+  rating: "Safe" | "Low Risk" | "Moderate Risk" | "High Risk" | "Critical Risk";
   confidence: number;
   confidenceBand: "Low Evidence" | "Moderate Evidence" | "Strong Evidence";
   matchedAllergens: RiskHit[];

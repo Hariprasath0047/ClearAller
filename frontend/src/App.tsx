@@ -1,5 +1,5 @@
 ﻿
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   ArrowRight,
   Camera,
@@ -54,6 +54,9 @@ type SkinType = (typeof skinTypeOptions)[number];
 type HairType = (typeof hairTypeOptions)[number];
 type CosmeticConcern = (typeof cosmeticConcernOptions)[number];
 
+const DEMO_LOGIN_EMAIL = "mail123@gmail.com";
+const DEMO_LOGIN_PASSWORD = "password";
+
 const createBlankAllergy = (): AllergySettingForm => ({
   category: "dairy",
   severity: "medium"
@@ -89,6 +92,10 @@ function getErrorMessage(error: unknown) {
 
 export default function App() {
   const queryClient = useQueryClient();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [productLens, setProductLens] = useState<ProductLens>("packaged-food");
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [analysisScope, setAnalysisScope] = useState<"selected" | "all">("all");
@@ -105,6 +112,7 @@ export default function App() {
 
   const accountQuery = useQuery({
     queryKey: ["account"],
+    enabled: isAuthenticated,
     queryFn: async () => (await api.get<Account>("/api/account/demo")).data
   });
 
@@ -112,7 +120,7 @@ export default function App() {
 
   const profilesQuery = useQuery({
     queryKey: ["profiles", userId],
-    enabled: Boolean(userId),
+    enabled: Boolean(isAuthenticated && userId),
     queryFn: async () => (await api.get<Profile[]>("/api/profiles", { params: { userId } })).data
   });
 
@@ -319,6 +327,112 @@ export default function App() {
     }));
     setProfileMessage(null);
     setProfileMessageType(null);
+  }
+
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (loginEmail.trim().toLowerCase() === DEMO_LOGIN_EMAIL && loginPassword === DEMO_LOGIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setLoginError(null);
+      return;
+    }
+
+    setLoginError("Invalid email or password.");
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="ambient-scroll grid min-h-screen place-items-center px-4 py-10 text-ink">
+        <div className="floating-orb left-[-5rem] top-24 h-40 w-40 bg-blue-200/45" />
+        <div className="floating-orb right-[12%] top-[18rem] h-52 w-52 bg-sea/20" style={{ animationDelay: "-4s" }} />
+        <section className="glass-card hero-clean relative w-full max-w-5xl overflow-hidden p-6 md:p-8">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0f172a] via-[#2563eb] to-[#0f766e]" />
+          <div className="grid gap-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#0f172a] px-4 py-2 text-sm font-medium text-white">
+                <ShieldCheck size={18} />
+                ClearAller Vision
+              </div>
+              <h1 className="mt-6 max-w-[12ch] font-display text-4xl font-semibold leading-tight md:text-5xl">
+                Sign in to check safer products.
+              </h1>
+              <p className="mt-4 max-w-xl text-base leading-8 text-ink/60">
+                Continue to allergy-aware analysis for packaged foods, cosmetics, profiles, OCR, search, and safety chat.
+              </p>
+              <div className="login-wave-scene mt-7 rounded-[30px] p-5">
+                <div className="login-wave-string login-wave-string--one" />
+                <div className="login-wave-string login-wave-string--two" />
+                <div className="login-wave-string login-wave-string--three" />
+                <div className="login-wave-orbit">
+                  <div className="login-product-card login-product-card--food">
+                    <span>Food label</span>
+                    <strong>Peanut free</strong>
+                  </div>
+                  <div className="login-product-card login-product-card--cosmetic">
+                    <span>Cosmetic fit</span>
+                    <strong>Skin safe</strong>
+                  </div>
+                  <div className="login-scan-core">
+                    <ShieldCheck size={26} />
+                  </div>
+                </div>
+                <div className="login-wave login-wave--one" />
+                <div className="login-wave login-wave--two" />
+                <div className="login-wave login-wave--three" />
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {["OCR labels", "Profile risk", "Safe picks"].map((item) => (
+                  <div key={item} className="overview-step rounded-[22px] px-4 py-3 text-sm font-semibold text-ink/70">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleLogin} className="rounded-[30px] border border-[#d7e2eb] bg-white/95 p-5 shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
+              <p className="section-title text-xs font-semibold uppercase text-ink/45">Secure login</p>
+              <h2 className="mt-3 font-display text-2xl font-semibold">Project access</h2>
+              <label className="mt-5 grid gap-2 text-sm font-medium text-ink/65">
+                Email ID
+                <input
+                  value={loginEmail}
+                  onChange={(event) => {
+                    setLoginEmail(event.target.value);
+                    setLoginError(null);
+                  }}
+                  type="email"
+                  placeholder="mail123@gmail.com"
+                  className="panel-outline rounded-2xl bg-white px-4 py-3"
+                />
+              </label>
+              <label className="mt-4 grid gap-2 text-sm font-medium text-ink/65">
+                Password
+                <input
+                  value={loginPassword}
+                  onChange={(event) => {
+                    setLoginPassword(event.target.value);
+                    setLoginError(null);
+                  }}
+                  type="password"
+                  placeholder="Enter password"
+                  className="panel-outline rounded-2xl bg-white px-4 py-3"
+                />
+              </label>
+              {loginError ? <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{loginError}</div> : null}
+              <button type="submit" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0f172a] px-5 py-4 font-medium text-white">
+                Login
+                <ArrowRight size={18} />
+              </button>
+              <p className="mt-4 text-xs leading-5 text-ink/45">
+                Use email <span className="font-semibold text-ink/60">mail123@gmail.com</span> and password{" "}
+                <span className="font-semibold text-ink/60">password</span>.
+              </p>
+            </form>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   return (

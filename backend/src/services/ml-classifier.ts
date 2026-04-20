@@ -19,12 +19,12 @@ let cachedState: ClassifierState | null = null;
 
 const seedWeights: Record<AllergyCategory, string[]> = {
   dairy: ["milk", "casein", "whey", "butter", "cream", "lactose", "cheese", "ghee"],
-  peanuts: ["peanut", "groundnut", "arachis"],
-  gluten: ["wheat", "barley", "rye", "malt", "spelt", "semolina", "triticum"],
+  peanuts: ["peanut", "peanuts", "groundnut", "groundnuts", "moongphali", "arachis"],
+  gluten: ["wheat", "barley", "rye", "malt", "spelt", "semolina", "triticum", "maida", "flour"],
   soy: ["soy", "soya", "lecithin", "miso", "tamari", "tofu"],
   eggs: ["egg", "albumin", "ovalbumin", "lysozyme"],
   shellfish: ["shrimp", "prawn", "crab", "lobster", "krill"],
-  "tree-nuts": ["almond", "cashew", "walnut", "pecan", "hazelnut", "pistachio", "macadamia", "argan"],
+  "tree-nuts": ["almond", "badam", "cashew", "walnut", "pecan", "hazelnut", "pistachio", "macadamia", "argan"],
   sesame: ["sesame", "tahini", "gingelly"],
   fragrance: ["fragrance", "parfum", "linalool", "limonene", "citral", "geraniol"],
   preservatives: ["benzoate", "sorbate", "phenoxyethanol", "bha", "bht", "formaldehyde"],

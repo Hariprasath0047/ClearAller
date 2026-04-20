@@ -71,7 +71,10 @@ export function ImageCapturePanel({
 
     const ingredientLineIndex = lines.findIndex((line) => /ingredients?\s*[:\-]/i.test(line));
     if (ingredientLineIndex >= 0) {
-      const relevant = lines.slice(ingredientLineIndex, ingredientLineIndex + 6).join(" ");
+      const followingLines = lines.slice(ingredientLineIndex);
+      const stopIndex = followingLines.findIndex((line, index) => index > 0 && /instructions?|directions?|method|how to use/i.test(line));
+      const relevantLines = stopIndex > 0 ? followingLines.slice(0, stopIndex) : followingLines.slice(0, 16);
+      const relevant = relevantLines.join(", ");
       return relevant.replace(/ingredients?\s*[:\-]\s*/i, "").trim();
     }
 

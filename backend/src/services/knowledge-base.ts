@@ -7,12 +7,12 @@ import pLimit from "p-limit";
 
 const categorySignals: Record<AllergyCategory, string[]> = {
   dairy: ["milk", "casein", "whey", "lactose", "butter", "ghee", "cheese", "cream", "caseinate", "milk solids"],
-  peanuts: ["peanut", "groundnut", "arachis", "peanut oil", "peanut flour"],
-  gluten: ["wheat", "barley", "rye", "malt", "spelt", "semolina", "triticum", "farina", "bulgur"],
+  peanuts: ["peanut", "peanuts", "groundnut", "groundnuts", "moongphali", "arachis", "peanut oil", "peanut flour", "peanut butter"],
+  gluten: ["wheat", "barley", "rye", "malt", "spelt", "semolina", "triticum", "farina", "bulgur", "all purpose flour", "maida", "flour"],
   soy: ["soy", "soya", "lecithin", "edamame", "miso", "tamari", "soy protein"],
   eggs: ["egg", "albumin", "ovalbumin", "lysozyme", "albumen"],
   shellfish: ["shrimp", "prawn", "crab", "lobster", "shellfish", "krill", "crustacean"],
-  "tree-nuts": ["almond", "cashew", "walnut", "pecan", "hazelnut", "pistachio", "macadamia", "argan", "brazil nut"],
+  "tree-nuts": ["almond", "badam", "cashew", "walnut", "pecan", "hazelnut", "pistachio", "macadamia", "argan", "brazil nut"],
   sesame: ["sesame", "tahini", "gingelly", "sesamum indicum"],
   fragrance: ["fragrance", "parfum", "linalool", "limonene", "citral", "geraniol", "hexyl cinnamal"],
   preservatives: ["benzoate", "sorbate", "phenoxyethanol", "formaldehyde", "bha", "bht", "sodium benzoate"],

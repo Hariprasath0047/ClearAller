@@ -23,6 +23,7 @@ type ProfilePreferences = {
   skinType: string;
   hairType: string;
   cosmeticConcerns: string[];
+  allergies: string[];
 };
 
 type CandidateProduct = {
@@ -381,16 +382,50 @@ function reviewNote(product: ProductResult) {
   return "";
 }
 
+function formatCategory(value: string) {
+  return value.replace(/_/g, "-").replace(/-/g, " ");
+}
+
+function buildSafetyReason(
+  product: ProductResult,
+  predictions: SafetyPrediction[],
+  preferences: ProfilePreferences[],
+  baseNote: string,
+  hasFullIngredients: boolean
+) {
+  const savedAllergens = Array.from(new Set(preferences.flatMap((preference) => preference.allergies.map(formatCategory)))).filter(Boolean);
+  const approvedProfiles = predictions.filter((prediction) => prediction.rating === "Safe").map((prediction) => prediction.profileName);
+  const preferenceNote = baseNote && !/safe choice|safe match|fallback/i.test(baseNote) ? ` ${baseNote}` : "";
+
+  if (!hasFullIngredients) {
+    return `No detected conflict for ${approvedProfiles.length ? approvedProfiles.join(", ") : "the chosen profiles"}, but the full ingredient list was not available.${preferenceNote}`;
+  }
+
+  if (savedAllergens.length) {
+    return `No detected match for saved allergens: ${savedAllergens.slice(0, 6).join(", ")}.${preferenceNote}`;
+  }
+
+  return `No detected allergen conflict for ${approvedProfiles.length ? approvedProfiles.join(", ") : "the chosen profiles"}.${preferenceNote}`;
+}
+
 function riskPriority(label: string) {
   if (label === "Safe") {
     return 0;
   }
 
-  if (label === "Moderate Risk") {
+  if (label === "Low Risk") {
     return 1;
   }
 
-  return 2;
+  if (label === "Moderate Risk") {
+    return 2;
+  }
+
+  if (label === "High Risk") {
+    return 3;
+  }
+
+  return 4;
 }
 
 function completenessScore(product: ProductResult) {
@@ -450,7 +485,12 @@ export async function searchAndEvaluateProducts(params: {
     },
     select: {
       id: true,
-      medicalConditions: true
+      medicalConditions: true,
+      allergySettings: {
+        select: {
+          category: true
+        }
+      }
     }
   });
 
@@ -459,7 +499,8 @@ export async function searchAndEvaluateProducts(params: {
     gender: readPreference(profile.medicalConditions, "gender"),
     skinType: readPreference(profile.medicalConditions, "skinType"),
     hairType: readPreference(profile.medicalConditions, "hairType"),
-    cosmeticConcerns: readPreferences(profile.medicalConditions, "cosmeticConcern")
+    cosmeticConcerns: readPreferences(profile.medicalConditions, "cosmeticConcern"),
+    allergies: profile.allergySettings.map((setting) => setting.category)
   }));
 
   const cacheKey = JSON.stringify({
@@ -474,7 +515,8 @@ export async function searchAndEvaluateProducts(params: {
       gender: preference.gender,
       skinType: preference.skinType,
       hairType: preference.hairType,
-      cosmeticConcerns: preference.cosmeticConcerns
+      cosmeticConcerns: preference.cosmeticConcerns,
+      allergies: preference.allergies
     }))
   });
   const cached = getCachedValue(analysisCache, cacheKey);
@@ -516,21 +558,28 @@ export async function searchAndEvaluateProducts(params: {
             persistHistory: false
           });
 
-          const highestRisk = analysis.predictions.some((prediction) => prediction.rating === "High Risk")
-            ? "High Risk"
-            : analysis.predictions.some((prediction) => prediction.rating === "Moderate Risk")
-              ? "Moderate Risk"
-              : "Safe";
+          const highestRisk = analysis.predictions.some((prediction) => prediction.rating === "Critical Risk")
+            ? "Critical Risk"
+            : analysis.predictions.some((prediction) => prediction.rating === "High Risk")
+              ? "High Risk"
+              : analysis.predictions.some((prediction) => prediction.rating === "Moderate Risk")
+                ? "Moderate Risk"
+                : analysis.predictions.some((prediction) => prediction.rating === "Low Risk")
+                  ? "Low Risk"
+                  : "Safe";
 
             return {
               product: candidate.product,
               predictions: analysis.predictions,
               safestLabel: highestRisk,
               recommendationScore: candidate.recommendationScore,
-              recommendationNote:
-                !candidate.product.ingredientsText?.trim() && (candidate.product.reviewRating ?? 0) >= 2.8
-                  ? "Medium-review fallback match shown because a full ingredient listing was not available."
-                  : candidate.recommendationNote
+              recommendationNote: buildSafetyReason(
+                candidate.product,
+                analysis.predictions,
+                preferences,
+                candidate.recommendationNote,
+                Boolean(candidate.product.ingredientsText?.trim())
+              )
             } satisfies RankedProduct;
           })
         )
@@ -542,7 +591,7 @@ export async function searchAndEvaluateProducts(params: {
     .sort((left, right) => right.recommendationScore - left.recommendationScore);
 
   const fallback = ranked
-    .filter((item) => item.safestLabel !== "High Risk")
+    .filter((item) => item.safestLabel !== "High Risk" && item.safestLabel !== "Critical Risk")
     .sort((left, right) => {
       const priorityGap = riskPriority(left.safestLabel) - riskPriority(right.safestLabel);
       if (priorityGap !== 0) {

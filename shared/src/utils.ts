@@ -1,10 +1,10 @@
 import type { SeverityLevel } from "./types.js";
 
 export const severityWeight: Record<SeverityLevel, number> = {
-  low: 0.35,
-  medium: 0.58,
-  high: 0.78,
-  critical: 0.95
+  low: 0.25,
+  medium: 0.5,
+  high: 0.75,
+  critical: 1
 };
 
 const stopPhrases = [
@@ -25,17 +25,35 @@ const stopPhrases = [
   "customer care",
   "best before",
   "manufactured by",
-  "marketed by"
+  "marketed by",
+  "instructions",
+  "method",
+  "recipe",
+  "blend together",
+  "mix everything",
+  "let the dough",
+  "shape into",
+  "top",
+  "bake in",
+  "cool completely",
+  "preheated oven"
 ];
 
 export function normalizeIngredientToken(value: string): string {
   return value
     .toLowerCase()
     .replace(/ingredients?\s*:/g, " ")
+    .replace(/[\u2013\u2014]/g, "-")
     .replace(/\((?:e\d+[a-z]?|ci\s*\d+|ins\s*\d+)\)/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\b\d+(?:\.\d+)?\s*(%|mg|mcg|g|kg|ml|l)\b/g, " ")
+    .replace(/\b\d+\s*-\s*\d+\b/g, " ")
+    .replace(/\b\d+\s*\/\s*\d+\b/g, " ")
+    .replace(/\b\d+(?:\.\d+)?\s*(%|mg|mcg|g|kg|ml|l|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|pinch|pcs|pieces)\b/g, " ")
+    .replace(/\b\d+(?:\.\d+)?\b/g, " ")
+    .replace(/\b(cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|pinch|pcs|pieces)\b/g, " ")
     .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+-\s+/g, " ")
+    .replace(/(^-|-$)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -53,7 +71,7 @@ function looksLikeIngredient(value: string): boolean {
     return false;
   }
 
-  if (/\b(vitamin|mineral|daily value|serving|calorie|product|description|directions)\b/.test(value)) {
+  if (/\b(vitamin|mineral|daily value|serving|calorie|product|description|directions|smooth|dough|cookies|enjoy|oven|minutes|golden)\b/.test(value)) {
     return false;
   }
 
@@ -65,8 +83,17 @@ function looksLikeIngredient(value: string): boolean {
 }
 
 export function splitIngredients(text: string): string[] {
-  return text
-    .split(/[,.;\n]+/g)
-    .map((item) => normalizeIngredientToken(item))
-    .filter((item) => looksLikeIngredient(item));
+  const preparedText = text
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\|/g, "\n")
+    .replace(/\b(and|with)\b/gi, ",");
+
+  return Array.from(
+    new Set(
+      preparedText
+        .split(/[,.;\n]+/g)
+        .map((item) => normalizeIngredientToken(item))
+        .filter((item) => looksLikeIngredient(item))
+    )
+  );
 }

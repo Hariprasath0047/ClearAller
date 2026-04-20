@@ -98,19 +98,7 @@ function uniqueCategories(values: AllergyCategory[]) {
 }
 
 function severityBonus(severity: SeverityLevel) {
-  if (severity === "critical") {
-    return 0.18;
-  }
-
-  if (severity === "high") {
-    return 0.1;
-  }
-
-  if (severity === "medium") {
-    return 0.04;
-  }
-
-  return 0;
+  return severityWeight[severity];
 }
 
 function confidenceBand(confidence: number): ConfidenceBand {
@@ -168,7 +156,7 @@ function mergeRuleAndMlHits(ruleHits: RiskHitWithSource[], mlSignals: Classifier
 
     const existing = merged.get(signal.ingredient);
     if (existing) {
-      existing.probability = Number(clamp(existing.probability * 0.82 + signal.confidence * 0.12, 0.08, 0.91).toFixed(2));
+      existing.probability = Number(clamp(Math.max(existing.probability, severityWeight[existing.severity]), 0.08, 1).toFixed(2));
       existing.detectedBy = "hybrid";
       existing.categories = uniqueCategories([...existing.categories, ...signal.categories]);
       merged.set(signal.ingredient, existing);
@@ -179,7 +167,7 @@ function mergeRuleAndMlHits(ruleHits: RiskHitWithSource[], mlSignals: Classifier
       ingredient: signal.ingredient,
       matchedName: signal.ingredient,
       categories: signal.categories,
-      probability: Number(clamp(severityWeight[severity] * 0.28 + signal.confidence * 0.16, 0.08, 0.62).toFixed(2)),
+      probability: Number(clamp(severityWeight[severity] * 0.7 + signal.confidence * 0.18, 0.08, 0.78).toFixed(2)),
       severity,
       detectedBy: "ml"
     });
@@ -253,8 +241,7 @@ export async function analyzeIngredients(params: {
           return null;
         }
 
-        const evidenceBoost = (entry.synonyms.length > 2 ? 0.06 : 0.02) + (entry.description ? 0.06 : 0);
-        const probability = clamp(severityWeight[severity] * 0.62 + evidenceBoost + severityBonus(severity), 0.08, 0.94);
+        const probability = clamp(severityBonus(severity), 0.08, 1);
 
         return {
           ingredient: normalizeIngredientToken(entry.canonicalName),
@@ -284,7 +271,7 @@ export async function analyzeIngredients(params: {
     const evidenceCoverage = normalizedIngredients.length
       ? (normalizedIngredients.length - unknownIngredients.length) / normalizedIngredients.length
       : 0;
-    const strongHits = matchedAllergens.filter((hit) => hit.probability >= 0.6).length;
+    const strongHits = matchedAllergens.filter((hit) => hit.probability >= 0.5).length;
     const averageMlConfidence = profileSignals.length
       ? profileSignals.reduce((sum, signal) => sum + signal.confidence, 0) / profileSignals.length
       : 0;
@@ -303,15 +290,19 @@ export async function analyzeIngredients(params: {
       ).toFixed(2)
     );
 
-    const strongestRuleHit = matchedAllergens.some((hit) => hit.detectedBy !== "ml" && hit.probability >= 0.46);
-    const strongestMlHit = matchedAllergens.some((hit) => hit.detectedBy === "ml" && hit.probability >= 0.58);
-    const criticalRuleHit = matchedAllergens.some((hit) => hit.detectedBy !== "ml" && hit.severity === "critical" && hit.probability >= 0.68);
+    const strongestRuleHit = matchedAllergens.some((hit) => hit.detectedBy !== "ml" && hit.probability >= 0.25);
+    const strongestMlHit = matchedAllergens.some((hit) => hit.detectedBy === "ml" && hit.probability >= 0.5);
+    const criticalRuleHit = matchedAllergens.some((hit) => hit.detectedBy !== "ml" && hit.severity === "critical" && hit.probability >= 1);
     const rating =
-      maxProbability >= 0.78 || criticalRuleHit
+      maxProbability >= 1 || criticalRuleHit
+        ? "Critical Risk"
+        : maxProbability >= 0.75
         ? "High Risk"
-        : maxProbability >= 0.46 && (strongestRuleHit || strongestMlHit)
+        : maxProbability >= 0.5 && (strongestRuleHit || strongestMlHit)
           ? "Moderate Risk"
-          : "Safe";
+          : maxProbability >= 0.25 && strongestRuleHit
+            ? "Low Risk"
+            : "Safe";
 
     return {
       profileId: profile.id,

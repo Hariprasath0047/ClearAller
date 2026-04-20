@@ -20,6 +20,11 @@ const ratingStyles = {
     ring: "#0f766e",
     badge: "bg-sea/10 text-sea border border-sea/20"
   },
+  "Low Risk": {
+    icon: <AlertTriangle size={18} />,
+    ring: "#38bdf8",
+    badge: "bg-sky-50 text-sky-700 border border-sky-100"
+  },
   "Moderate Risk": {
     icon: <AlertTriangle size={18} />,
     ring: "#2563eb",
@@ -29,6 +34,11 @@ const ratingStyles = {
     icon: <ShieldAlert size={18} />,
     ring: "#dc2626",
     badge: "bg-red-50 text-red-600 border border-red-100"
+  },
+  "Critical Risk": {
+    icon: <ShieldAlert size={18} />,
+    ring: "#991b1b",
+    badge: "bg-red-100 text-red-800 border border-red-200"
   }
 } as const;
 
@@ -46,14 +56,12 @@ function detectionLabel(value?: "rules" | "ml" | "hybrid") {
 
 function buildShortSummary(prediction: SafetyPredictionView) {
   if (prediction.rating === "Safe") {
-    return prediction.unknownIngredients.length
-      ? `No strong allergen match found. ${prediction.unknownIngredients.length} ingredient${prediction.unknownIngredients.length > 1 ? "s" : ""} may still need manual review.`
-      : "No strong allergen match found for this profile.";
+    return "Safe";
   }
 
   if (prediction.matchedAllergens.length) {
     const topHit = prediction.matchedAllergens[0];
-    return `${prediction.rating} because of ${topHit.matchedName} (${topHit.categories.join(", ")}).`;
+    return `${prediction.rating} because of ${topHit.matchedName}.`;
   }
 
   return `${prediction.rating} result based on the current ingredient evidence.`;
@@ -72,6 +80,10 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
     <div className="mt-5 grid gap-4">
       {(predictions as SafetyPredictionView[]).map((prediction) => {
         const style = ratingStyles[prediction.rating];
+        const topRiskProbability = prediction.matchedAllergens[0]?.probability ?? 0;
+        const riskPercent = Math.round(topRiskProbability * 100);
+        const isSafe = prediction.rating === "Safe";
+
         return (
           <article key={prediction.profileId} className="spotlight-card rounded-[30px] border border-ink/8 p-5 shadow-sm shadow-ink/5">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -90,11 +102,20 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
               <div className="flex items-center justify-center">
                 <div
                   className="metric-ring grid h-32 w-32 place-items-center rounded-full"
-                  style={{ ["--value" as string]: `${Math.round(prediction.confidence * 100)}%`, background: `conic-gradient(${style.ring} ${Math.round(prediction.confidence * 100)}%, rgba(15,23,42,0.08) 0)` }}
+                  style={{
+                    ["--value" as string]: isSafe ? "100%" : `${riskPercent}%`,
+                    background: isSafe
+                      ? `conic-gradient(${style.ring} 100%, rgba(15,23,42,0.08) 0)`
+                      : `conic-gradient(${style.ring} ${riskPercent}%, rgba(15,23,42,0.08) 0)`
+                  }}
                 >
                   <div className="grid h-24 w-24 place-items-center rounded-full bg-white text-center shadow-sm">
-                    <span className="text-3xl font-semibold">{Math.round(prediction.confidence * 100)}%</span>
-                    <span className="text-xs uppercase tracking-[0.2em] text-ink/45">Confidence</span>
+                    <span className={isSafe ? "text-2xl font-semibold text-sea" : "text-3xl font-semibold"}>
+                      {isSafe ? "Safe" : `${riskPercent}%`}
+                    </span>
+                    <span className="text-xs uppercase tracking-[0.2em] text-ink/45">
+                      {isSafe ? "Result" : "Risk"}
+                    </span>
                   </div>
                 </div>
               </div>
