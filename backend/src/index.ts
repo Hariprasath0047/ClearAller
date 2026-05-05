@@ -29,5 +29,6 @@ const port = Number(process.env.PORT ?? 4000);
 
 app.listen({ port, host: "0.0.0.0" }).catch((error) => {
   app.log.error(error);
+  console.error(error);
   process.exit(1);
 });

@@ -9,8 +9,29 @@ This project is now prepared for a free-first deployment:
 ## 1. Create The Free Database
 
 1. Create a free Supabase project.
-2. Copy the project Postgres connection string.
-3. Keep it private. It will be used as `DATABASE_URL` on Render.
+2. Open the Supabase database connection screen.
+3. Copy the **Session pooler** connection string, not the direct connection string.
+4. Keep it private. It will be used as `DATABASE_URL` on Render.
+
+Use the Session pooler because the direct Supabase host `db.<project-ref>.supabase.co:5432` can require IPv6. Render free deployments should use the IPv4-compatible pooler URL instead.
+
+The URL should look similar to:
+
+```txt
+postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+```
+
+Replace every placeholder. For example, do not leave `<region>` or `REGION` in the URL. The host must be the exact pooler host Supabase shows, such as:
+
+```txt
+aws-0-ap-south-1.pooler.supabase.com
+```
+
+Do not use this direct URL on Render free:
+
+```txt
+postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
+```
 
 ## 2. Deploy The Backend On Render
 
