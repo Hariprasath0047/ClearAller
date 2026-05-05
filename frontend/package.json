@@ -6,11 +6,19 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc -b && vite build",
+    "mobile:add:android": "npx cap add android",
+    "mobile:add:ios": "npx cap add ios",
+    "mobile:sync": "npm run build && npx cap sync",
+    "mobile:open:android": "npx cap open android",
+    "mobile:open:ios": "npx cap open ios",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "npx.cmd vitest run --passWithNoTests --config vitest.config.mjs"
   },
   "dependencies": {
     "@clearaller/shared": "file:../shared",
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/ios": "^7.2.0",
     "@tanstack/react-query": "^5.66.9",
     "axios": "^1.8.2",
     "lucide-react": "^0.487.0",
@@ -20,6 +28,7 @@
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.2.0",
     "@types/node": "^22.13.14",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",

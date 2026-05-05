@@ -138,19 +138,19 @@ export function ProductSearchPanel({
   });
 
   return (
-    <div className="glass-card border border-[#d7e2eb] bg-white/95 p-6 md:p-7">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <div className="rounded-[24px] border border-[#d7e2eb] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-col gap-4">
         <div>
-          <p className="section-title text-sm font-semibold uppercase text-ink/45">Product safety search</p>
-          <h2 className="mt-3 max-w-3xl font-display text-3xl font-semibold">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6d8399]">Product safety search</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold leading-tight text-[#173251]">
             {lens === "cosmetic" ? "Search cosmetics and get the top 3 safe picks matched to saved beauty preferences." : "Search packaged foods and get the top 3 safe picks for the selected allergy profiles."}
           </h2>
-          <p className="mt-2 text-sm text-ink/55">Choose product type, select profile, then search the curated product catalog.</p>
+          <p className="mt-2 text-sm leading-6 text-[#607992]">Choose product type, select profile, then search the curated product catalog.</p>
         </div>
-        <div className="w-full max-w-2xl space-y-3">
-          <div className="rounded-[24px] bg-white/75 p-3 panel-outline">
-            <p className="text-sm font-medium text-ink/60">Run product search for</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="space-y-3">
+          <div className="rounded-[20px] bg-[#f5f8fd] p-3">
+            <p className="text-sm font-medium text-[#607992]">Run product search for</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
               {productLensOptions.map((option) => {
                 const active = lens === option;
                 const title = option === "cosmetic" ? "Cosmetic" : "Packaged food";
@@ -161,16 +161,16 @@ export function ProductSearchPanel({
                   <button
                     key={option}
                     onClick={() => setLens(option)}
-                    className={`rounded-[20px] px-4 py-3 text-left ${active ? "bg-[#0f172a] text-white" : "bg-[#edf4f8] text-[#334155]"}`}
+                    className={`rounded-[16px] px-3 py-3 text-left ${active ? "bg-[#0d53a9] text-white" : "bg-white text-[#334155]"}`}
                   >
                     <p className="font-semibold">{title}</p>
-                    <p className={`mt-1 text-sm ${active ? "text-white/75" : "text-ink/55"}`}>{description}</p>
+                    <p className={`mt-1 text-xs leading-5 ${active ? "text-white/75" : "text-[#607992]"}`}>{description}</p>
                   </button>
                 );
               })}
             </div>
-            <div className="mt-3 rounded-2xl bg-[#f1f7fb] px-4 py-3 text-sm text-ink/60">
-              <p className="font-medium text-ink/65">Choose one or more profiles for this search</p>
+            <div className="mt-3 rounded-[18px] bg-white px-4 py-3 text-sm text-[#607992]">
+              <p className="font-medium text-[#173251]">Choose one or more profiles for this search</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {profiles.length ? (
                   profiles.map((profile) => {
@@ -183,17 +183,17 @@ export function ProductSearchPanel({
                             active ? current.filter((item) => item !== profile.id) : [...current, profile.id]
                           )
                         }
-                        className={`rounded-full px-4 py-2 text-sm font-medium ${active ? "bg-[#0f172a] text-white" : "bg-white text-[#334155]"}`}
+                        className={`rounded-full px-4 py-2 text-sm font-medium ${active ? "bg-[#0d53a9] text-white" : "bg-[#edf3fb] text-[#334155]"}`}
                       >
                         {profile.name}
                       </button>
                     );
                   })
                 ) : (
-                  <span className="rounded-full bg-white px-4 py-2 text-sm text-ink/60">No profiles available yet.</span>
+                  <span className="rounded-full bg-[#edf3fb] px-4 py-2 text-sm text-[#607992]">No profiles available yet.</span>
                 )}
               </div>
-              <p className="mt-3 text-sm text-ink/55">
+              <p className="mt-3 text-sm text-[#607992]">
                 {selectedSearchProfileIds.length
                   ? `Using ${selectedSearchProfileIds.length} chosen profile${selectedSearchProfileIds.length > 1 ? "s" : ""} for this search.`
                   : "Select at least one profile before searching."}
@@ -201,12 +201,12 @@ export function ProductSearchPanel({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="grid gap-3">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={lens === "cosmetic" ? "Try cleanser, face wash, serum, shampoo, or sunscreen" : "Try biscuits, cereal, noodles, chocolates, or snacks"}
-            className="panel-outline rounded-2xl bg-white px-4 py-3"
+            className="h-12 rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
           />
           <button
             onClick={() =>
@@ -217,7 +217,7 @@ export function ProductSearchPanel({
               })
             }
             disabled={!query.trim() || selectedSearchProfileIds.length === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0f172a] px-5 py-3 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#0d53a9] px-5 py-3 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Search size={18} />
             Search
@@ -226,17 +226,17 @@ export function ProductSearchPanel({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
+      <div className="mt-5 grid gap-3">
         {searchQuery.data?.map((entry) => {
           const placeholder = buildPlaceholderVisual(entry);
           const PlaceholderIcon = placeholder.icon;
 
           return (
-          <article key={entry.product.id} className="spotlight-card rounded-[28px] border border-ink/8 p-4 shadow-sm shadow-ink/5">
+          <article key={entry.product.id} className="rounded-[22px] border border-[#d8e3f0] bg-[#fbfdff] p-3 shadow-[0_10px_22px_rgba(15,23,42,0.05)]">
             {entry.product.imageUrl ? (
-              <img src={entry.product.imageUrl} alt={entry.product.name} className="h-44 w-full rounded-[20px] object-cover" />
+              <img src={entry.product.imageUrl} alt={entry.product.name} className="h-36 w-full rounded-[18px] object-cover" />
             ) : (
-              <div className={`relative flex h-44 flex-col justify-between overflow-hidden rounded-[20px] bg-gradient-to-br ${placeholder.gradient} p-5 text-ink/55`}>
+              <div className={`relative flex h-36 flex-col justify-between overflow-hidden rounded-[18px] bg-gradient-to-br ${placeholder.gradient} p-4 text-ink/55`}>
                 <div className="absolute right-[-1.25rem] top-[-1.25rem] h-24 w-24 rounded-full bg-white/45 blur-xl" />
                 <div className={`grid h-12 w-12 place-items-center rounded-2xl ${placeholder.iconBg} ${placeholder.iconColor}`}>
                   <PlaceholderIcon size={22} />
@@ -256,7 +256,7 @@ export function ProductSearchPanel({
                     <ShieldCheck size={12} />
                     {entry.product.category}
                   </div>
-                  <h3 className="mt-3 font-display text-xl font-semibold">{entry.product.name}</h3>
+                  <h3 className="mt-2 font-display text-lg font-semibold leading-6 text-[#173251]">{entry.product.name}</h3>
                   <p className="text-sm text-ink/55">{entry.product.brand ?? entry.product.source}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.16em] text-ink/40">{entry.product.source}</p>
                 </div>
@@ -268,7 +268,7 @@ export function ProductSearchPanel({
                   {entry.safestLabel === "Safe" ? "Safe pick" : "Safest available"}
                 </span>
               </div>
-              <div className="mt-4 rounded-[20px] bg-white/85 px-4 py-3 text-sm text-ink/65 panel-outline">
+              <div className="mt-3 rounded-[16px] bg-[#f5f8fd] px-4 py-3 text-sm leading-6 text-[#607992]">
                 {entry.recommendationNote}
               </div>
               {entry.product.reviewRating ? (
@@ -277,16 +277,16 @@ export function ProductSearchPanel({
                   {entry.product.reviewRating.toFixed(1)}/5 review signal
                 </div>
               ) : null}
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {entry.predictions.map((prediction) => (
-                  <span key={`${entry.product.id}-${prediction.profileId}`} className="rounded-full bg-white px-3 py-2 text-xs text-ink/65 shadow-sm">
+                  <span key={`${entry.product.id}-${prediction.profileId}`} className="rounded-full bg-white px-3 py-2 text-xs text-[#607992] shadow-sm">
                     {prediction.profileName}: {prediction.rating === "Safe" ? "approved" : prediction.rating}
                   </span>
                 ))}
               </div>
-              <div className="mt-4 text-xs font-medium uppercase tracking-[0.16em] text-ink/40">Recommendation score {Math.round(entry.recommendationScore)}</div>
+              <div className="mt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#6d8399]">Recommendation score {Math.round(entry.recommendationScore)}</div>
               {entry.product.purchaseUrl ? (
-                <a href={entry.product.purchaseUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-sea">
+                <a href={entry.product.purchaseUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-sea">
                   Open source listing
                   <ArrowUpRight size={16} />
                 </a>
@@ -295,9 +295,9 @@ export function ProductSearchPanel({
           </article>
         )})}
       </div>
-      {searchQuery.isFetching ? <div className="mt-4 text-sm text-ink/60">Finding matching products for your profiles...</div> : null}
+      {searchQuery.isFetching ? <div className="mt-4 text-sm text-[#607992]">Finding matching products for your profiles...</div> : null}
       {!searchQuery.isLoading && submittedSearch?.query.trim().length && searchQuery.data?.length === 0 ? (
-        <div className="mt-4 rounded-2xl bg-[#edf4f8] px-4 py-3 text-sm text-ink/60">No safe matches found for this search yet. Try a broader product type or another profile mode.</div>
+        <div className="mt-4 rounded-[18px] bg-[#edf4f8] px-4 py-3 text-sm text-[#607992]">No safe matches found for this search yet. Try a broader product type or another profile mode.</div>
       ) : null}
     </div>
   );

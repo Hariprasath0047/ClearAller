@@ -69,15 +69,15 @@ function buildShortSummary(prediction: SafetyPredictionView) {
 
 export function AnalysisResults({ predictions, loading }: { predictions: SafetyPrediction[]; loading: boolean }) {
   if (loading) {
-    return <div className="mt-5 rounded-[28px] border border-ink/8 bg-white/80 p-6 text-sm text-ink/60 panel-outline">Running OCR-normalized ingredient analysis and risk scoring...</div>;
+    return <div className="rounded-[22px] border border-[#d8e3f0] bg-white p-4 text-sm text-[#607992] shadow-[0_14px_28px_rgba(15,23,42,0.08)]">Running OCR-normalized ingredient analysis and risk scoring...</div>;
   }
 
   if (!predictions.length) {
-    return <div className="mt-5 rounded-[28px] border border-ink/8 bg-white/80 p-6 text-sm text-ink/60 panel-outline">No analysis yet. Scan an ingredient label and choose whether to compare one profile or all profiles.</div>;
+    return <div className="rounded-[22px] border border-[#d8e3f0] bg-white p-4 text-sm text-[#607992] shadow-[0_14px_28px_rgba(15,23,42,0.08)]">No analysis yet. Scan an ingredient label and choose whether to compare one profile or all profiles.</div>;
   }
 
   return (
-    <div className="mt-5 grid gap-4">
+    <div className="grid gap-3">
       {(predictions as SafetyPredictionView[]).map((prediction) => {
         const style = ratingStyles[prediction.rating];
         const topRiskProbability = prediction.matchedAllergens[0]?.probability ?? 0;
@@ -85,11 +85,11 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
         const isSafe = prediction.rating === "Safe";
 
         return (
-          <article key={prediction.profileId} className="spotlight-card rounded-[30px] border border-ink/8 p-5 shadow-sm shadow-ink/5">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <article key={prediction.profileId} className="rounded-[22px] border border-[#d8e3f0] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+            <div className="flex flex-col gap-3">
               <div>
-                <p className="section-title text-sm font-semibold uppercase text-ink/45">Profile result</p>
-                <h3 className="mt-2 font-display text-2xl font-semibold">{prediction.profileName}</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6d8399]">Profile result</p>
+                <h3 className="mt-2 font-display text-xl font-semibold text-[#173251]">{prediction.profileName}</h3>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${style.badge}`}>
@@ -98,10 +98,10 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
                 </div>
               </div>
             </div>
-            <div className="mt-5 grid gap-4 lg:grid-cols-[180px_1fr]">
-              <div className="flex items-center justify-center">
+            <div className="mt-4 grid gap-4">
+              <div className="flex items-center justify-center rounded-[18px] bg-[#f5f8fd] py-4">
                 <div
-                  className="metric-ring grid h-32 w-32 place-items-center rounded-full"
+                  className="metric-ring grid h-28 w-28 place-items-center rounded-full"
                   style={{
                     ["--value" as string]: isSafe ? "100%" : `${riskPercent}%`,
                     background: isSafe
@@ -109,23 +109,23 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
                       : `conic-gradient(${style.ring} ${riskPercent}%, rgba(15,23,42,0.08) 0)`
                   }}
                 >
-                  <div className="grid h-24 w-24 place-items-center rounded-full bg-white text-center shadow-sm">
-                    <span className={isSafe ? "text-2xl font-semibold text-sea" : "text-3xl font-semibold"}>
+                  <div className="grid h-20 w-20 place-items-center rounded-full bg-white text-center shadow-sm">
+                    <span className={isSafe ? "text-xl font-semibold text-sea" : "text-2xl font-semibold"}>
                       {isSafe ? "Safe" : `${riskPercent}%`}
                     </span>
-                    <span className="text-xs uppercase tracking-[0.2em] text-ink/45">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-ink/45">
                       {isSafe ? "Result" : "Risk"}
                     </span>
                   </div>
                 </div>
               </div>
               <div className="grid gap-3">
-                <div className="rounded-[22px] border border-ink/10 bg-white/80 p-4 text-sm text-ink/65 panel-outline">
-                  <p className="font-medium text-ink">Short summary</p>
+                <div className="rounded-[18px] bg-[#f5f8fd] p-4 text-sm text-[#607992]">
+                  <p className="font-medium text-[#173251]">Short summary</p>
                   <p className="mt-2 leading-6">{buildShortSummary(prediction)}</p>
                 </div>
                 {prediction.matchedAllergens.length ? (
-                  <details className="rounded-[22px] border border-ink/10 bg-white/80 p-4 panel-outline">
+                  <details className="rounded-[18px] bg-[#f5f8fd] p-4">
                     <summary className="cursor-pointer list-none font-medium text-ink">
                       View matched ingredients ({prediction.matchedAllergens.length})
                     </summary>
@@ -133,13 +133,13 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
                       {prediction.matchedAllergens.slice(0, 4).map((rawHit) => {
                         const hit = rawHit as RiskHitView;
                         return (
-                          <div key={`${prediction.profileId}-${hit.ingredient}`} className="rounded-[22px] bg-white/90 p-4 panel-outline">
+                          <div key={`${prediction.profileId}-${hit.ingredient}`} className="rounded-[16px] bg-white p-4 shadow-sm">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <div>
                                 <p className="font-semibold">{hit.matchedName}</p>
-                                <p className="text-sm text-ink/60">Categories: {hit.categories.join(", ")}</p>
+                                <p className="text-sm leading-6 text-ink/60">Categories: {hit.categories.join(", ")}</p>
                               </div>
-                              <div className="rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-600">
+                              <div className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
                                 {Math.round(hit.probability * 100)}% risk probability
                               </div>
                             </div>
@@ -156,10 +156,10 @@ export function AnalysisResults({ predictions, loading }: { predictions: SafetyP
                     </div>
                   </details>
                 ) : (
-                  <div className="rounded-[22px] bg-mint/20 p-4 text-sm text-ink/65">No direct allergen matches were detected for this profile in the current ingredient set.</div>
+                  <div className="rounded-[18px] bg-mint/20 p-4 text-sm text-ink/65">No direct allergen matches were detected for this profile in the current ingredient set.</div>
                 )}
                 {prediction.mlSignals?.length ? (
-                  <details className="rounded-[22px] border border-ink/10 bg-white/80 p-4 text-sm text-ink/65 panel-outline">
+                  <details className="rounded-[18px] bg-[#f5f8fd] p-4 text-sm text-ink/65">
                     <summary className="cursor-pointer list-none font-medium text-ink">
                       View classifier signals ({prediction.mlSignals.length})
                     </summary>

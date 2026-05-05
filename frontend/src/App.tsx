@@ -1,19 +1,26 @@
-﻿
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   Camera,
-  Menu,
-  Pencil,
+  CircleUserRound,
+  LogOut,
   Plus,
+  ScanSearch,
   Search,
   ShieldCheck,
-  Trash2,
-  X
+  Sparkles,
+  Trash2
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import type { AllergyCategory, SafetyPrediction } from "@clearaller/shared";
+import { AnalysisResults } from "./components/AnalysisResults";
+import { ImageCapturePanel } from "./components/ImageCapturePanel";
+import { MobileBottomNav, type AppScreen } from "./components/MobileBottomNav";
+import { ProductSearchPanel } from "./components/ProductSearchPanel";
+import { SafetyChatWidget } from "./components/SafetyChatWidget";
+import { useAuth } from "./context/AuthContext";
 import { api } from "./lib/api";
 import {
   allergyOptions,
@@ -24,28 +31,10 @@ import {
   severityOptions,
   skinTypeOptions
 } from "./lib/constants";
-import { AnalysisResults } from "./components/AnalysisResults";
-import { ImageCapturePanel } from "./components/ImageCapturePanel";
-import { ProductSearchPanel } from "./components/ProductSearchPanel";
-import { SafetyChatWidget } from "./components/SafetyChatWidget";
-
-type Account = {
-  id: string;
-  email: string;
-  displayName: string;
-};
 
 type AllergySettingForm = {
   category: AllergyCategory;
   severity: (typeof severityOptions)[number];
-};
-
-type Profile = {
-  id: string;
-  name: string;
-  age: number;
-  medicalConditions?: Array<{ name: string; note?: string }>;
-  allergySettings: Array<{ category: string; severity: string }>;
 };
 
 type ProductLens = (typeof productLensOptions)[number];
@@ -54,8 +43,31 @@ type SkinType = (typeof skinTypeOptions)[number];
 type HairType = (typeof hairTypeOptions)[number];
 type CosmeticConcern = (typeof cosmeticConcernOptions)[number];
 
-const DEMO_LOGIN_EMAIL = "mail123@gmail.com";
-const DEMO_LOGIN_PASSWORD = "password";
+type MedicalCondition = {
+  name: string;
+  note?: string;
+};
+
+type Profile = {
+  id: string;
+  name: string;
+  age: number;
+  medicalConditions?: MedicalCondition[];
+  allergySettings: Array<{ category: string; severity: string }>;
+};
+
+type DashboardData = {
+  profiles: Profile[];
+  recentAnalyses: Array<{
+    id: string;
+    productQuery?: string | null;
+    createdAt: string;
+    profileHits: Array<{ rating: string }>;
+  }>;
+  knowledgeCount: number;
+};
+
+type AuthMode = "welcome" | "login" | "signup";
 
 const createBlankAllergy = (): AllergySettingForm => ({
   category: "dairy",
@@ -90,12 +102,215 @@ function getErrorMessage(error: unknown) {
   return axiosError.response?.data?.message ?? axiosError.message ?? "Something went wrong.";
 }
 
+function AuthView({
+  mode,
+  isBusy,
+  onModeChange,
+  onLogin,
+  onSignup,
+  loginEmail,
+  setLoginEmail,
+  loginPassword,
+  setLoginPassword,
+  loginError,
+  signupName,
+  setSignupName,
+  signupEmail,
+  setSignupEmail,
+  signupPassword,
+  setSignupPassword,
+  signupConfirmPassword,
+  setSignupConfirmPassword,
+  signupError
+}: {
+  mode: AuthMode;
+  isBusy: boolean;
+  onModeChange: (mode: AuthMode) => void;
+  onLogin: (event: FormEvent<HTMLFormElement>) => void;
+  onSignup: (event: FormEvent<HTMLFormElement>) => void;
+  loginEmail: string;
+  setLoginEmail: (value: string) => void;
+  loginPassword: string;
+  setLoginPassword: (value: string) => void;
+  loginError: string | null;
+  signupName: string;
+  setSignupName: (value: string) => void;
+  signupEmail: string;
+  setSignupEmail: (value: string) => void;
+  signupPassword: string;
+  setSignupPassword: (value: string) => void;
+  signupConfirmPassword: string;
+  setSignupConfirmPassword: (value: string) => void;
+  signupError: string | null;
+}) {
+  const signupFields: Array<{
+    label: string;
+    value: string;
+    setter: (value: string) => void;
+    type: "text" | "email" | "password";
+  }> = [
+    { label: "Name :", value: signupName, setter: setSignupName, type: "text" },
+    { label: "Email :", value: signupEmail, setter: setSignupEmail, type: "email" },
+    { label: "Password :", value: signupPassword, setter: setSignupPassword, type: "password" },
+    { label: "Re-Password :", value: signupConfirmPassword, setter: setSignupConfirmPassword, type: "password" }
+  ];
+
+  if (mode === "welcome") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#57bfd0] px-4 py-6">
+        <div className="flex min-h-[min(92vh,760px)] w-full max-w-[400px] flex-col overflow-hidden rounded-[30px] bg-[#0d53a9] px-6 pb-8 pt-8 text-white shadow-[0_26px_70px_rgba(13,83,169,0.38)]">
+          <h1 className="text-center font-display text-[2.6rem] font-semibold leading-none">Welcome to</h1>
+          <div className="mt-6 flex justify-center">
+            <div className="grid h-[270px] w-[270px] place-items-center rounded-[40px] bg-white/8 p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+              <div className="grid place-items-center gap-5">
+                <div className="grid h-28 w-28 place-items-center rounded-[30px] bg-white text-[#0d53a9] shadow-[0_14px_28px_rgba(0,0,0,0.14)]">
+                  <ShieldCheck size={58} strokeWidth={2.2} />
+                </div>
+                <div className="text-center">
+                  <p className="font-display text-5xl font-semibold tracking-tight">ClearAller</p>
+                  <p className="mt-1 text-lg font-semibold tracking-[0.42em] text-white/85">vission</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onModeChange("login")}
+            className="mx-auto mt-8 rounded-full border border-black/40 bg-white px-10 py-3 text-xl font-semibold text-black"
+          >
+            Start
+          </button>
+
+          <p className="mt-8 text-center text-[1.05rem] leading-8 text-white/92">
+            It is a <span className="font-semibold">personalized allergen safety platform</span> that helps people check
+            whether a food or cosmetic product is safe for them based on their specific allergies.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "login") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#57bfd0] px-4 py-6">
+        <div className="w-full max-w-[400px] rounded-[30px] bg-[#0d53a9] px-6 py-8 shadow-[0_26px_70px_rgba(13,83,169,0.38)]">
+          <form onSubmit={onLogin} className="relative rounded-[28px] bg-white px-6 pb-8 pt-6 shadow-[0_16px_30px_rgba(0,0,0,0.22)]">
+            <button
+              type="button"
+              onClick={() => onModeChange("welcome")}
+              className="absolute right-[-10px] top-[-10px] grid h-8 w-8 place-items-center rounded-full bg-[#ff4f3f] text-white"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <h2 className="text-center font-display text-[2.1rem] font-semibold leading-tight text-black">Login to your Account</h2>
+
+            <label className="mt-8 block text-base font-semibold text-black">
+              Email :
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
+                className="mt-2 h-12 w-full rounded-none border-0 bg-[#d9d9d9] px-4 text-black outline-none"
+              />
+            </label>
+
+            <label className="mt-5 block text-base font-semibold text-black">
+              Password :
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                className="mt-2 h-12 w-full rounded-none border-0 bg-[#d9d9d9] px-4 text-black outline-none"
+              />
+            </label>
+
+            {loginError ? <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{loginError}</div> : null}
+
+            <button
+              type="submit"
+              disabled={isBusy}
+              className="mx-auto mt-6 block min-w-[132px] rounded-[10px] bg-[#0d53a9] px-8 py-3 text-xl font-semibold text-white shadow-[0_5px_12px_rgba(13,83,169,0.42)] disabled:opacity-50"
+            >
+              {isBusy ? "..." : "Login"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onModeChange("signup")}
+              className="mx-auto mt-3 block text-[1.35rem] text-black"
+            >
+              create
+            </button>
+
+            <p className="mt-6 text-center text-sm leading-6 text-[#45627e]">
+              Demo access boots the app against the current project backend account.
+            </p>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#57bfd0] px-4 py-6">
+        <div className="w-full max-w-[400px] rounded-[30px] bg-[#0d53a9] px-6 py-8 shadow-[0_26px_70px_rgba(13,83,169,0.38)]">
+        <form onSubmit={onSignup} className="relative rounded-[28px] bg-white px-6 pb-8 pt-6 shadow-[0_16px_30px_rgba(0,0,0,0.22)]">
+          <button
+            type="button"
+            onClick={() => onModeChange("login")}
+            className="absolute right-[-10px] top-[-10px] grid h-8 w-8 place-items-center rounded-full bg-[#ff4f3f] text-white"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <h2 className="text-center font-display text-[2rem] font-semibold leading-tight text-black">Create an Account</h2>
+
+          {signupFields.map(({ label, value, setter, type }, index) => (
+            <label key={label} className={`block text-base font-semibold text-black ${index === 0 ? "mt-5" : "mt-4"}`}>
+              {label}
+              <input
+                type={type}
+                value={value}
+                onChange={(event) => setter(event.target.value)}
+                className="mt-2 h-12 w-full rounded-none border-0 bg-[#d9d9d9] px-4 text-black outline-none"
+              />
+            </label>
+          ))}
+
+          {signupError ? <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{signupError}</div> : null}
+
+          <button
+            type="submit"
+            disabled={isBusy}
+            className="mx-auto mt-6 block min-w-[132px] rounded-[10px] bg-[#0d53a9] px-8 py-3 text-xl font-semibold text-white shadow-[0_5px_12px_rgba(13,83,169,0.42)] disabled:opacity-50"
+          >
+            {isBusy ? "..." : "Create"}
+          </button>
+
+          <button type="button" onClick={() => onModeChange("login")} className="mx-auto mt-3 block text-[1.35rem] text-black">
+            Login
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { account, isAuthenticated, isBusy, login, signup, logout } = useAuth();
+
+  const [authMode, setAuthMode] = useState<AuthMode>("welcome");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [signupError, setSignupError] = useState<string | null>(null);
+
+  const [activeScreen, setActiveScreen] = useState<AppScreen>("home");
   const [productLens, setProductLens] = useState<ProductLens>("packaged-food");
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [analysisScope, setAnalysisScope] = useState<"selected" | "all">("all");
@@ -107,21 +322,19 @@ export default function App() {
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileMessageType, setProfileMessageType] = useState<"success" | "error" | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
-  const [pendingDeleteProfile, setPendingDeleteProfile] = useState<Profile | null>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const accountQuery = useQuery({
-    queryKey: ["account"],
-    enabled: isAuthenticated,
-    queryFn: async () => (await api.get<Account>("/api/account/demo")).data
-  });
-
-  const userId = accountQuery.data?.id;
+  const userId = account?.id;
 
   const profilesQuery = useQuery({
     queryKey: ["profiles", userId],
-    enabled: Boolean(isAuthenticated && userId),
+    enabled: Boolean(userId),
     queryFn: async () => (await api.get<Profile[]>("/api/profiles", { params: { userId } })).data
+  });
+
+  const dashboardQuery = useQuery({
+    queryKey: ["dashboard", userId],
+    enabled: Boolean(userId),
+    queryFn: async () => (await api.get<DashboardData>("/api/dashboard", { params: { userId } })).data
   });
 
   useEffect(() => {
@@ -133,7 +346,7 @@ export default function App() {
   const saveProfile = useMutation({
     mutationFn: async () => {
       if (!userId) {
-        throw new Error("Account is still loading. Please wait a moment and try again.");
+        throw new Error("Account is still loading.");
       }
 
       if (!profileForm.name.trim()) {
@@ -166,7 +379,9 @@ export default function App() {
           ...(profileForm.gender ? [{ name: profileForm.gender, note: "gender" }] : []),
           ...(profileForm.skinType ? [{ name: profileForm.skinType, note: "skinType" }] : []),
           ...(profileForm.hairType ? [{ name: profileForm.hairType, note: "hairType" }] : []),
-          ...profileForm.cosmeticConcerns.map((concern) => ({ name: concern, note: "cosmeticConcern" as const }))
+          ...profileForm.cosmeticConcerns
+            .filter((concern) => concern !== "none")
+            .map((concern) => ({ name: concern, note: "cosmeticConcern" as const }))
         ]
       };
 
@@ -177,11 +392,10 @@ export default function App() {
       }
     },
     onSuccess: async () => {
-      const wasEditing = Boolean(editingProfileId);
       setProfileForm(createInitialProfile());
       setEditingProfileId(null);
       setProfileMessageType("success");
-      setProfileMessage(wasEditing ? "Profile updated successfully." : "Profile saved successfully.");
+      setProfileMessage(editingProfileId ? "Profile updated." : "Profile created.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["profiles", userId] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard", userId] })
@@ -196,7 +410,7 @@ export default function App() {
   const deleteProfile = useMutation({
     mutationFn: async (profileId: string) => {
       if (!userId) {
-        throw new Error("Account is still loading. Please wait a moment and try again.");
+        throw new Error("Account is still loading.");
       }
       await api.delete(`/api/profiles/${profileId}`, { params: { userId } });
       return profileId;
@@ -208,7 +422,7 @@ export default function App() {
         setProfileForm(createInitialProfile());
       }
       setProfileMessageType("success");
-      setProfileMessage("Profile deleted successfully.");
+      setProfileMessage("Profile deleted.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["profiles", userId] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard", userId] })
@@ -239,6 +453,7 @@ export default function App() {
     onSuccess: async (predictions) => {
       setAnalysisResults(predictions);
       setAnalysisMessage(null);
+      setActiveScreen("results");
       await queryClient.invalidateQueries({ queryKey: ["dashboard", userId] });
     },
     onError: (error) => {
@@ -246,19 +461,43 @@ export default function App() {
     }
   });
 
-  const canSaveProfile =
-    profileForm.name.trim().length >= 2 &&
-    Number.isInteger(profileForm.age) &&
-    profileForm.age > 3 &&
-    profileForm.allergySettings.length > 0 &&
-    !saveProfile.isPending;
-  const canRunAnalysis = ingredientText.trim().length > 0 && profilesQuery.data && profilesQuery.data.length > 0;
+  const heroStats = useMemo(
+    () => [
+      { label: "Profiles", value: String(dashboardQuery.data?.profiles.length ?? profilesQuery.data?.length ?? 0) },
+      { label: "Knowledge", value: String(dashboardQuery.data?.knowledgeCount ?? 0) },
+      { label: "Results", value: String(analysisResults.length) }
+    ],
+    [analysisResults.length, dashboardQuery.data?.knowledgeCount, dashboardQuery.data?.profiles.length, profilesQuery.data?.length]
+  );
 
   function resetProfileForm() {
     setProfileForm(createInitialProfile());
     setEditingProfileId(null);
     setProfileMessage(null);
     setProfileMessageType(null);
+  }
+
+  function updateAllergyEntry(index: number, key: keyof AllergySettingForm, value: string) {
+    setProfileForm((current) => ({
+      ...current,
+      allergySettings: current.allergySettings.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, [key]: value } : entry
+      )
+    }));
+  }
+
+  function addAllergyEntry() {
+    setProfileForm((current) => ({
+      ...current,
+      allergySettings: [...current.allergySettings, createBlankAllergy()]
+    }));
+  }
+
+  function removeAllergyEntry(index: number) {
+    setProfileForm((current) => ({
+      ...current,
+      allergySettings: current.allergySettings.filter((_, entryIndex) => entryIndex !== index)
+    }));
   }
 
   function startEditingProfile(profile: Profile) {
@@ -277,7 +516,7 @@ export default function App() {
       cosmeticConcerns: readProfileNotes(profile.medicalConditions, "cosmeticConcern") as CosmeticConcern[]
     });
     setProfileMessageType(null);
-    setProfileMessage(`Editing ${profile.name}. Update the form and save.`);
+    setProfileMessage(`Editing ${profile.name}.`);
   }
 
   function runAnalysis() {
@@ -290,9 +529,9 @@ export default function App() {
       setAnalysisMessage("Save at least one profile before running analysis.");
       return;
     }
-    
+
     if (analysisScope === "selected" && selectedProfileIds.length === 0) {
-      setAnalysisMessage("Choose at least one profile for selected-profile analysis.");
+      setAnalysisMessage("Choose at least one profile for selected analysis.");
       return;
     }
 
@@ -300,784 +539,540 @@ export default function App() {
     analyzeMutation.mutate();
   }
 
-  function updateAllergyEntry(index: number, key: keyof AllergySettingForm, value: string) {
-    setProfileForm((current) => ({
-      ...current,
-      allergySettings: current.allergySettings.map((entry, entryIndex) =>
-        entryIndex === index ? { ...entry, [key]: value } : entry
-      )
-    }));
-    setProfileMessage(null);
-    setProfileMessageType(null);
-  }
-
-  function addAllergyEntry() {
-    setProfileForm((current) => ({
-      ...current,
-      allergySettings: [...current.allergySettings, createBlankAllergy()]
-    }));
-    setProfileMessage(null);
-    setProfileMessageType(null);
-  }
-
-  function removeAllergyEntry(index: number) {
-    setProfileForm((current) => ({
-      ...current,
-      allergySettings: current.allergySettings.filter((_, entryIndex) => entryIndex !== index)
-    }));
-    setProfileMessage(null);
-    setProfileMessageType(null);
-  }
-
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoginError(null);
 
-    if (loginEmail.trim().toLowerCase() === DEMO_LOGIN_EMAIL && loginPassword === DEMO_LOGIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setLoginError(null);
+    try {
+      await login({ email: loginEmail, password: loginPassword });
+      setActiveScreen("home");
+    } catch (error) {
+      setLoginError(getErrorMessage(error));
+    }
+  }
+
+  async function handleSignup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSignupError(null);
+
+    if (signupPassword !== signupConfirmPassword) {
+      setSignupError("Passwords do not match.");
       return;
     }
 
-    setLoginError("Invalid email or password.");
+    try {
+      await signup({
+        displayName: signupName,
+        email: signupEmail,
+        password: signupPassword
+      });
+      setActiveScreen("home");
+    } catch (error) {
+      setSignupError(getErrorMessage(error));
+    }
   }
+
+  function handleLogout() {
+    logout();
+    setActiveScreen("home");
+    setAuthMode("welcome");
+    setIngredientText("");
+    setProductQuery("");
+    setAnalysisResults([]);
+    resetProfileForm();
+  }
+
+  const screenTitle =
+    activeScreen === "home"
+      ? "Clearaller vission"
+      : activeScreen === "camera"
+        ? "Upload & Detect"
+        : activeScreen === "search"
+          ? "Search products"
+          : activeScreen === "chat"
+            ? "Chat Bot"
+            : activeScreen === "results"
+              ? "Profile Result"
+              : "My profile";
 
   if (!isAuthenticated) {
     return (
-      <div className="ambient-scroll grid min-h-screen place-items-center px-4 py-10 text-ink">
-        <div className="floating-orb left-[-5rem] top-24 h-40 w-40 bg-blue-200/45" />
-        <div className="floating-orb right-[12%] top-[18rem] h-52 w-52 bg-sea/20" style={{ animationDelay: "-4s" }} />
-        <section className="glass-card hero-clean relative w-full max-w-5xl overflow-hidden p-6 md:p-8">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0f172a] via-[#2563eb] to-[#0f766e]" />
-          <div className="grid gap-8 lg:grid-cols-[1fr_0.85fr] lg:items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#0f172a] px-4 py-2 text-sm font-medium text-white">
-                <ShieldCheck size={18} />
-                ClearAller Vision
-              </div>
-              <h1 className="mt-6 max-w-[12ch] font-display text-4xl font-semibold leading-tight md:text-5xl">
-                Sign in to check safer products.
-              </h1>
-              <p className="mt-4 max-w-xl text-base leading-8 text-ink/60">
-                Continue to allergy-aware analysis for packaged foods, cosmetics, profiles, OCR, search, and safety chat.
-              </p>
-              <div className="login-wave-scene mt-7 rounded-[30px] p-5">
-                <div className="login-wave-string login-wave-string--one" />
-                <div className="login-wave-string login-wave-string--two" />
-                <div className="login-wave-string login-wave-string--three" />
-                <div className="login-wave-orbit">
-                  <div className="login-product-card login-product-card--food">
-                    <span>Food label</span>
-                    <strong>Peanut free</strong>
-                  </div>
-                  <div className="login-product-card login-product-card--cosmetic">
-                    <span>Cosmetic fit</span>
-                    <strong>Skin safe</strong>
-                  </div>
-                  <div className="login-scan-core">
-                    <ShieldCheck size={26} />
-                  </div>
-                </div>
-                <div className="login-wave login-wave--one" />
-                <div className="login-wave login-wave--two" />
-                <div className="login-wave login-wave--three" />
-              </div>
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {["OCR labels", "Profile risk", "Safe picks"].map((item) => (
-                  <div key={item} className="overview-step rounded-[22px] px-4 py-3 text-sm font-semibold text-ink/70">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <form onSubmit={handleLogin} className="rounded-[30px] border border-[#d7e2eb] bg-white/95 p-5 shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
-              <p className="section-title text-xs font-semibold uppercase text-ink/45">Secure login</p>
-              <h2 className="mt-3 font-display text-2xl font-semibold">Project access</h2>
-              <label className="mt-5 grid gap-2 text-sm font-medium text-ink/65">
-                Email ID
-                <input
-                  value={loginEmail}
-                  onChange={(event) => {
-                    setLoginEmail(event.target.value);
-                    setLoginError(null);
-                  }}
-                  type="email"
-                  placeholder="mail123@gmail.com"
-                  className="panel-outline rounded-2xl bg-white px-4 py-3"
-                />
-              </label>
-              <label className="mt-4 grid gap-2 text-sm font-medium text-ink/65">
-                Password
-                <input
-                  value={loginPassword}
-                  onChange={(event) => {
-                    setLoginPassword(event.target.value);
-                    setLoginError(null);
-                  }}
-                  type="password"
-                  placeholder="Enter password"
-                  className="panel-outline rounded-2xl bg-white px-4 py-3"
-                />
-              </label>
-              {loginError ? <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{loginError}</div> : null}
-              <button type="submit" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0f172a] px-5 py-4 font-medium text-white">
-                Login
-                <ArrowRight size={18} />
-              </button>
-              <p className="mt-4 text-xs leading-5 text-ink/45">
-                Use email <span className="font-semibold text-ink/60">mail123@gmail.com</span> and password{" "}
-                <span className="font-semibold text-ink/60">password</span>.
-              </p>
-            </form>
-          </div>
-        </section>
-      </div>
+      <AuthView
+        mode={authMode}
+        isBusy={isBusy}
+        onModeChange={setAuthMode}
+        onLogin={handleLogin}
+        onSignup={handleSignup}
+        loginEmail={loginEmail}
+        setLoginEmail={setLoginEmail}
+        loginPassword={loginPassword}
+        setLoginPassword={setLoginPassword}
+        loginError={loginError}
+        signupName={signupName}
+        setSignupName={setSignupName}
+        signupEmail={signupEmail}
+        setSignupEmail={setSignupEmail}
+        signupPassword={signupPassword}
+        setSignupPassword={setSignupPassword}
+        signupConfirmPassword={signupConfirmPassword}
+        setSignupConfirmPassword={setSignupConfirmPassword}
+        signupError={signupError}
+      />
     );
   }
 
   return (
-    <div className="ambient-scroll min-h-screen px-4 pb-16 pt-4 text-ink md:px-8 xl:px-10">
-      <div className="floating-orb left-[-5rem] top-24 h-40 w-40 bg-blue-200/45" />
-      <div className="floating-orb right-[8%] top-[24rem] h-52 w-52 bg-sea/20" style={{ animationDelay: "-4s" }} />
-      <div className="floating-orb bottom-12 left-[35%] h-36 w-36 bg-sky-200/30" style={{ animationDelay: "-7s" }} />
-
-      <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-[28px] border border-[#d7e2eb] bg-white/95 px-4 py-3 shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur-xl md:rounded-full md:px-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0f172a] text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <p className="font-display text-xl font-semibold">ClearAller Vision</p>
-            <p className="text-sm text-ink/55">Personalized allergen transparency for packaged food and cosmetics</p>
-          </div>
-        </div>
-        <div className="hidden items-center gap-2 md:flex">
-          {[
-            ["Overview", "#overview"],
-            ["Profiles", "#profiles"],
-            ["Analyze", "#analysis"],
-            ["Search", "#search"]
-          ].map(([label, href]) => (
-            <a key={href} href={href} className="rounded-full px-4 py-2 text-sm font-medium text-ink/70 transition hover:bg-[#dbeafe] hover:text-[#1d4ed8]">
-              {label}
-            </a>
-          ))}
-        </div>
-        <button
-          onClick={() => setMobileNavOpen((current) => !current)}
-          className="grid h-11 w-11 place-items-center rounded-2xl bg-[#dbeafe] text-[#1d4ed8] md:hidden"
-          aria-label="Toggle navigation"
-        >
-          {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </nav>
-
-      {mobileNavOpen ? (
-        <div className="mx-auto mt-3 max-w-7xl rounded-[28px] border border-[#d7e2eb] bg-white/95 p-3 shadow-[0_18px_36px_rgba(15,23,42,0.08)] backdrop-blur-xl md:hidden">
-          <div className="grid gap-2">
-            {[
-              ["Overview", "#overview"],
-              ["Profiles", "#profiles"],
-              ["Analyze", "#analysis"],
-              ["Search", "#search"]
-            ].map(([label, href]) => (
-              <a
-                key={href}
-                href={href}
-                onClick={() => setMobileNavOpen(false)}
-                className="rounded-2xl bg-[#dbeafe] px-4 py-3 text-sm font-medium text-[#1d4ed8]"
-              >
-                {label}
-              </a>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <main className="mx-auto mt-6 flex max-w-7xl flex-col gap-6 lg:mt-8">
-        <section id="overview" className="glass-card hero-clean relative overflow-hidden p-6 md:p-8 lg:p-10">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0f172a] via-[#2563eb] to-[#0f766e]" />
-          <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+    <div className="min-h-screen bg-[#57bfd0] px-3 py-4 text-[#10243b]">
+      <div className="mx-auto flex min-h-[calc(100dvh-1.5rem)] max-w-[400px] flex-col overflow-hidden rounded-[28px] bg-[#0d53a9] shadow-[0_26px_70px_rgba(13,83,169,0.38)]">
+        <header className="flex items-center justify-between gap-3 px-4 pb-3 pt-4 text-white">
+          <div className="flex items-center gap-3">
+            {activeScreen === "results" ? (
+              <button type="button" onClick={() => setActiveScreen("camera")} className="grid h-10 w-10 place-items-center rounded-full bg-white/14">
+                <ArrowLeft size={18} />
+              </button>
+            ) : (
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-white/14">
+                <ShieldCheck size={20} />
+              </div>
+            )}
             <div>
-              <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
-                <span className="rounded-full bg-[#0f172a] px-4 py-2 text-white">ClearAller Vision</span>
-                <span className="rounded-full bg-white px-4 py-2 text-[#334155] shadow-sm">Food + cosmetic screening</span>
-              </div>
-              <p className="section-title mt-6 text-sm font-semibold uppercase text-[#466277]">Product safety assistant</p>
-              <h1 className="mt-4 max-w-[12ch] font-display text-4xl font-semibold leading-tight sm:text-5xl xl:text-[4.55rem]">
-                Scan ingredients. Choose safer products.
-              </h1>
-              <p className="mt-5 max-w-xl text-base leading-8 text-[#3c566a] md:text-lg">
-                Upload a product label, compare the ingredients with saved allergy and beauty profiles, then see safer food or cosmetic choices.
-              </p>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                <div className="overview-step rounded-[24px] p-4">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#dbeafe] text-[#1d4ed8]">
-                    <Camera size={22} />
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold">1. Capture label</h3>
-                  <p className="mt-2 text-sm leading-6 text-ink/60">Read ingredients from food or cosmetic packs.</p>
-                </div>
-                <div className="overview-step rounded-[24px] p-4">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e4f3f1] text-[#0f766e]">
-                    <ShieldCheck size={22} />
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold">2. Check profile</h3>
-                  <p className="mt-2 text-sm leading-6 text-ink/60">Match allergies, skin type, hair type, and gender.</p>
-                </div>
-                <div className="overview-step rounded-[24px] p-4">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e0f2fe] text-[#0369a1]">
-                    <Search size={22} />
-                  </div>
-                  <h3 className="mt-4 text-base font-semibold">3. Pick product</h3>
-                  <p className="mt-2 text-sm leading-6 text-ink/60">Get top safe options from the curated catalog.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div className="product-showcase rounded-[34px] border border-[#d9e3ee] p-5 shadow-[0_18px_42px_rgba(19,34,56,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="section-title text-xs font-semibold uppercase text-[#527089]">How the product works</p>
-                  <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-xs font-semibold text-[#1d4ed8]">Live workflow</span>
-                </div>
-
-                <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                  <div className="mock-phone rounded-[30px] p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
-                        OCR scan
-                      </div>
-                      <Camera size={18} className="text-white/75" />
-                    </div>
-                    <div className="mock-label mt-5 rounded-[24px] bg-white p-4">
-                      <div className="mock-package mx-auto">
-                        <span>Milkmaid</span>
-                      </div>
-                      <div className="mt-5 space-y-2">
-                        <div className="h-2.5 w-full rounded-full bg-slate-200" />
-                        <div className="h-2.5 w-5/6 rounded-full bg-slate-100" />
-                        <div className="h-2.5 w-4/6 rounded-full bg-slate-100" />
-                      </div>
-                      <div className="scan-line" />
-                    </div>
-                    <div className="mt-4 rounded-[22px] bg-white/12 p-4 text-white">
-                      <p className="text-xs uppercase tracking-[0.2em] text-white/55">Extracted ingredients</p>
-                      <p className="mt-2 text-sm leading-6 text-white/82">Milk solids, sugar, lactose, emulsifier</p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <div className="mock-product-card">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#678095]">Food package</p>
-                          <h3 className="mt-2 text-xl font-semibold text-[#132238]">Milkmaid label</h3>
-                          <p className="mt-1 text-sm text-[#617789]">Dairy ingredient detected</p>
-                        </div>
-                        <span className="mock-risk-badge danger">High risk</span>
-                      </div>
-                      <p className="mt-4 rounded-2xl bg-[#f7fafc] px-4 py-3 text-sm text-[#4e6478]">Blocked for profiles with critical milk or dairy allergy.</p>
-                    </div>
-
-                    <div className="mock-product-card">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#678095]">Cosmetic</p>
-                          <h3 className="mt-2 text-xl font-semibold text-[#132238]">Gentle face wash</h3>
-                          <p className="mt-1 text-sm text-[#617789]">Sensitive-skin friendly option</p>
-                        </div>
-                        <span className="mock-risk-badge safe">Safe pick</span>
-                      </div>
-                    </div>
-
-                    <div className="mock-product-card">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#678095]">Recommendation</p>
-                          <h3 className="mt-2 text-xl font-semibold text-[#132238]">Top 3 safer products</h3>
-                          <p className="mt-1 text-sm text-[#617789]">Filtered by selected profile data</p>
-                        </div>
-                        <span className="mock-risk-badge neutral">Curated</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <h1 className="font-display text-[1.45rem] font-semibold leading-tight">{screenTitle}</h1>
+              <p className="mt-1 text-xs text-white/80">{account?.displayName ?? account?.email}</p>
             </div>
           </div>
-        </section>
+          <button type="button" onClick={handleLogout} className="grid h-10 w-10 place-items-center rounded-full bg-white/14">
+            <LogOut size={18} />
+          </button>
+        </header>
 
-        <section id="profiles" className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-          <div className="glass-card p-6 md:p-7">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="section-title text-sm font-semibold uppercase text-ink/45">Multi-profile manager</p>
-                <h2 className="mt-3 max-w-xl font-display text-3xl font-semibold">Create, edit, and tune allergy profiles with cosmetic preferences built in.</h2>
-              </div>
-              {editingProfileId ? (
-                <button onClick={resetProfileForm} type="button" className="rounded-full bg-[#edf4f8] px-4 py-2 text-sm font-medium text-ink/70">
-                  Cancel edit
-                </button>
-              ) : null}
-            </div>
+        <main className="flex-1 overflow-y-auto rounded-t-[24px] bg-[#f4f7fb] px-3 pb-4 pt-3">
+          {activeScreen === "home" ? (
+            <div className="space-y-4">
+              <section className="overflow-hidden rounded-[24px] bg-white shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                <div className="bg-[#0d53a9] px-5 pb-6 pt-5 text-white">
+                  <p className="text-sm font-semibold tracking-[0.18em] text-white/75">ClearAller Vision</p>
+                  <h2 className="mt-3 font-display text-[1.8rem] font-semibold leading-[1.08]">Scan ingredients. Choose safer products.</h2>
+                  <p className="mt-3 text-sm leading-6 text-white/82">
+                    Upload a product label, compare the ingredients with saved allergy and beauty profiles, then see safer food or cosmetic choices.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveScreen("profile")}
+                    className="mt-5 rounded-[14px] bg-white px-5 py-3 text-sm font-semibold text-[#0d53a9]"
+                  >
+                    create profile
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 px-4 pb-4 pt-4">
+                  {heroStats.map((item) => (
+                    <div key={item.label} className="rounded-[16px] bg-[#edf3fb] px-2 py-4 text-center">
+                      <p className="text-xl font-semibold text-[#0d53a9]">{item.value}</p>
+                      <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5b7592]">{item.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-            <div className="mt-6 grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="grid gap-2 text-sm font-medium text-ink/70">
-                  Profile name
-                  <input
-                    value={profileForm.name}
-                    onChange={(event) => {
-                      setProfileForm((current) => ({ ...current, name: event.target.value }));
-                      setProfileMessage(null);
-                      setProfileMessageType(null);
-                    }}
-                    placeholder="Aanya, Patient 02, Family child"
-                    className="panel-outline rounded-2xl bg-white px-4 py-3"
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-medium text-ink/70">
-                Age
-                <input
-                  type="number"
-                  min={4}
-                    value={profileForm.age}
-                    onChange={(event) => {
-                      setProfileForm((current) => ({ ...current, age: Number(event.target.value) }));
-                      setProfileMessage(null);
-                      setProfileMessageType(null);
-                    }}
-                    placeholder="Age"
-                    className="panel-outline rounded-2xl bg-white px-4 py-3"
-                  />
-                  <span className="text-xs font-medium text-[#2563eb]">Note: only ages above 3 are allowed.</span>
-                </label>
-              </div>
-
-              <div className="rounded-[28px] border border-ink/8 bg-gradient-to-br from-[#f7efe5] to-[#fdfaf4] p-4 md:p-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="font-semibold text-ink">Allergy matrix</p>
-                    <p className="mt-1 text-sm text-ink/60">Add multiple allergies, assign severity, and remove rows you no longer need.</p>
+              <section className="grid gap-3">
+                <div className="rounded-[24px] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-[16px] bg-[#edf3fb] text-[#0d53a9]">
+                      <ScanSearch size={24} />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Start with a scan</p>
+                      <p className="text-sm text-[#607992]">Upload a food or cosmetic label and run profile-aware checks.</p>
+                    </div>
                   </div>
                   <button
-                    onClick={addAllergyEntry}
                     type="button"
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white"
+                    onClick={() => setActiveScreen("camera")}
+                    className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#0d53a9] px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    Open detector
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+
+                <div className="rounded-[24px] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">Recent activity</p>
+                      <p className="text-sm text-[#607992]">Latest analyses from the current account.</p>
+                    </div>
+                    <Sparkles size={18} className="text-[#0d53a9]" />
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    {dashboardQuery.data?.recentAnalyses.length ? (
+                      dashboardQuery.data.recentAnalyses.map((entry) => (
+                        <div key={entry.id} className="rounded-[18px] bg-[#f5f8fd] px-3 py-3">
+                          <p className="text-sm font-semibold text-[#173251]">{entry.productQuery || "Ingredient scan"}</p>
+                          <p className="mt-1 text-xs text-[#607992]">
+                            {entry.profileHits.map((hit) => hit.rating).join(", ") || "No profile hits"} ·{" "}
+                            {new Date(entry.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="rounded-[18px] bg-[#f5f8fd] px-3 py-4 text-sm text-[#607992]">No analyses yet. Run your first scan from Upload & Detect.</p>
+                    )}
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeScreen === "camera" ? (
+            <div className="space-y-4">
+              <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                <p className="text-sm font-semibold text-[#173251]">Select Profiles</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAnalysisScope("selected")}
+                    className={`rounded-[14px] px-3 py-3 text-sm font-semibold ${
+                      analysisScope === "selected" ? "bg-[#0d53a9] text-white" : "bg-[#edf3fb] text-[#0d53a9]"
+                    }`}
+                  >
+                    Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnalysisScope("all")}
+                    className={`rounded-[14px] px-3 py-3 text-sm font-semibold ${
+                      analysisScope === "all" ? "bg-[#0d53a9] text-white" : "bg-[#edf3fb] text-[#0d53a9]"
+                    }`}
+                  >
+                    All
+                  </button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(profilesQuery.data ?? []).map((profile) => {
+                    const selected = selectedProfileIds.includes(profile.id);
+                    return (
+                      <button
+                        key={profile.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedProfileIds((current) =>
+                            selected ? current.filter((item) => item !== profile.id) : [...current, profile.id]
+                          )
+                        }
+                        className={`rounded-full px-4 py-2 text-xs font-semibold ${
+                          selected ? "bg-[#0d53a9] text-white" : "bg-[#edf3fb] text-[#4f6986]"
+                        }`}
+                      >
+                        {profile.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {productLensOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setProductLens(option)}
+                      className={`rounded-[14px] px-3 py-2 text-sm font-semibold ${
+                        productLens === option ? "bg-[#0d53a9] text-white" : "bg-[#edf3fb] text-[#0d53a9]"
+                      }`}
+                    >
+                      {option === "packaged-food" ? "Food" : "cosmetics"}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <ImageCapturePanel ingredientText={ingredientText} setIngredientText={setIngredientText} />
+
+              <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                <label className="block text-sm font-semibold text-[#173251]">
+                  Extracted ingredient text
+                  <textarea
+                    value={ingredientText}
+                    onChange={(event) => setIngredientText(event.target.value)}
+                    rows={6}
+                    className="mt-2 w-full rounded-[18px] border border-[#d8e3f0] bg-[#f8fbff] px-4 py-3 text-sm outline-none"
+                  />
+                </label>
+
+                <label className="mt-4 block text-sm font-semibold text-[#173251]">
+                  Product query
+                  <input
+                    value={productQuery}
+                    onChange={(event) => setProductQuery(event.target.value)}
+                    placeholder="Milkmaid, gentle cleanser, sunscreen..."
+                    className="mt-2 h-12 w-full rounded-[18px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
+                  />
+                </label>
+
+                {analysisMessage ? <div className="mt-4 rounded-[18px] bg-red-50 px-4 py-3 text-sm text-red-600">{analysisMessage}</div> : null}
+
+                <div className="mt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={runAnalysis}
+                    disabled={analyzeMutation.isPending}
+                    className="flex-1 rounded-[16px] bg-[#0d53a9] px-4 py-3 text-base font-semibold text-white disabled:opacity-50"
+                  >
+                    {analyzeMutation.isPending ? "Analyzing..." : "Analyze"}
+                  </button>
+                  {analysisResults.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveScreen("results")}
+                      className="rounded-[16px] bg-[#edf3fb] px-4 py-3 text-sm font-semibold text-[#0d53a9]"
+                    >
+                      Results
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeScreen === "results" ? (
+            <div className="space-y-4">
+              <AnalysisResults predictions={analysisResults} loading={analyzeMutation.isPending} />
+            </div>
+          ) : null}
+
+          {activeScreen === "search" ? (
+            <ProductSearchPanel
+              userId={userId}
+              profileIds={selectedProfileIds}
+              profiles={(profilesQuery.data ?? []).map((profile) => ({ id: profile.id, name: profile.name }))}
+              initialQuery={productQuery}
+              lens={productLens}
+              setLens={setProductLens}
+            />
+          ) : null}
+
+          {activeScreen === "chat" ? <SafetyChatWidget userId={userId} profileIds={selectedProfileIds} lens={productLens} setLens={setProductLens} embedded /> : null}
+
+          {activeScreen === "profile" ? (
+            <div className="space-y-4">
+              <section className="rounded-[24px] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[#173251]">{editingProfileId ? "Edit profile" : "Add profile"}</p>
+                    <p className="text-sm text-[#607992]">Store allergies plus skin and hair preferences.</p>
+                  </div>
+                  {editingProfileId ? (
+                    <button type="button" onClick={resetProfileForm} className="rounded-[14px] bg-[#edf3fb] px-3 py-2 text-xs font-semibold text-[#0d53a9]">
+                      Cancel
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  <input
+                    value={profileForm.name}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="Profile name"
+                    className="h-12 rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    min={4}
+                    value={profileForm.age}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, age: Number(event.target.value) }))}
+                    placeholder="Age"
+                    className="h-12 rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
+                  />
+
+                  {profileForm.allergySettings.map((entry, index) => (
+                    <div key={`allergy-${index}`} className="rounded-[18px] bg-[#f5f8fd] p-3">
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <select
+                          value={entry.category}
+                          onChange={(event) => updateAllergyEntry(index, "category", event.target.value)}
+                          className="h-11 rounded-[14px] border border-[#d8e3f0] bg-white px-3 text-sm outline-none"
+                        >
+                          {allergyOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={entry.severity}
+                          onChange={(event) => updateAllergyEntry(index, "severity", event.target.value)}
+                          className="h-11 rounded-[14px] border border-[#d8e3f0] bg-white px-3 text-sm outline-none"
+                        >
+                          {severityOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => removeAllergyEntry(index)}
+                          disabled={profileForm.allergySettings.length === 1}
+                          className="grid h-11 w-11 place-items-center rounded-[14px] bg-[#ffe9ea] text-[#c53c47] disabled:opacity-40"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addAllergyEntry}
+                    className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#edf3fb] px-4 py-3 text-sm font-semibold text-[#0d53a9]"
                   >
                     <Plus size={16} />
                     Add allergy
                   </button>
-                </div>
 
-                <div className="mt-4 grid gap-3">
-                  {profileForm.allergySettings.map((entry, index) => (
-                    <div key={`allergy-${index}`} className="rounded-[24px] bg-white p-4 shadow-sm shadow-ink/5 panel-outline">
-                      <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-                        <label className="grid gap-2 text-sm font-medium text-ink/65">
-                          Allergy type
-                          <select
-                            value={entry.category}
-                            onChange={(event) => updateAllergyEntry(index, "category", event.target.value)}
-                            className="panel-outline rounded-2xl bg-white px-4 py-3"
-                          >
-                            {allergyOptions.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="grid gap-2 text-sm font-medium text-ink/65">
-                          Severity level
-                          <select
-                            value={entry.severity}
-                            onChange={(event) => updateAllergyEntry(index, "severity", event.target.value)}
-                            className="panel-outline rounded-2xl bg-white px-4 py-3"
-                          >
-                            {severityOptions.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <div className="flex items-end">
-                          <button
-                            type="button"
-                            onClick={() => removeAllergyEntry(index)}
-                            disabled={profileForm.allergySettings.length === 1}
-                          className="inline-flex w-full items-center justify-center rounded-2xl bg-red-50 px-4 py-3 text-red-600 disabled:cursor-not-allowed disabled:opacity-40 lg:w-auto"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                  <select
+                    value={profileForm.gender}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, gender: event.target.value as GenderOption }))}
+                    className="h-12 rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
+                  >
+                    {genderOptions.map((option) => (
+                      <option key={option} value={option}>
+                        Gender: {option}
+                      </option>
+                    ))}
+                  </select>
 
-              <label className="grid gap-2 text-sm font-medium text-ink/70">
-                Optional medical condition
-                <input
-                  value={profileForm.medicalCondition}
-                  onChange={(event) => {
-                    setProfileForm((current) => ({ ...current, medicalCondition: event.target.value }));
-                    setProfileMessage(null);
-                    setProfileMessageType(null);
-                  }}
-                  placeholder="Asthma, eczema, dermatitis, or treatment note"
-                  className="panel-outline rounded-2xl bg-white px-4 py-3"
-                />
-              </label>
+                  <select
+                    value={profileForm.skinType}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, skinType: event.target.value as SkinType }))}
+                    className="h-12 rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
+                  >
+                    {skinTypeOptions.map((option) => (
+                      <option key={option} value={option}>
+                        Skin type: {option}
+                      </option>
+                    ))}
+                  </select>
 
-              <label className="grid gap-2 text-sm font-medium text-ink/70">
-                Gender
-                <select
-                  value={profileForm.gender}
-                  onChange={(event) => {
-                    setProfileForm((current) => ({ ...current, gender: event.target.value as GenderOption }));
-                    setProfileMessage(null);
-                    setProfileMessageType(null);
-                  }}
-                  className="panel-outline rounded-2xl bg-white px-4 py-3"
-                >
-                  {genderOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <select
+                    value={profileForm.hairType}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, hairType: event.target.value as HairType }))}
+                    className="h-12 rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 text-sm outline-none"
+                  >
+                    {hairTypeOptions.map((option) => (
+                      <option key={option} value={option}>
+                        Hair type: {option}
+                      </option>
+                    ))}
+                  </select>
 
-              <div className="rounded-[28px] border border-ink/8 bg-gradient-to-br from-[#eef7ff] via-white to-[#f3fff8] p-4 md:p-5">
-                <div>
-                  <p className="font-semibold text-ink">Cosmetic preference profile</p>
-                  <p className="mt-1 text-sm text-ink/60">These fields help cosmetic recommendations focus on usable, safe products for the right skin and hair needs.</p>
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                  <label className="grid gap-2 text-sm font-medium text-ink/65">
-                    Skin type
-                    <select
-                      value={profileForm.skinType}
-                      onChange={(event) => {
-                        setProfileForm((current) => ({ ...current, skinType: event.target.value as SkinType }));
-                        setProfileMessage(null);
-                        setProfileMessageType(null);
-                      }}
-                      className="panel-outline rounded-xl bg-white px-3 py-2.5 text-sm"
-                    >
-                      {skinTypeOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-ink/65">
-                    Hair type
-                    <select
-                      value={profileForm.hairType}
-                      onChange={(event) => {
-                        setProfileForm((current) => ({ ...current, hairType: event.target.value as HairType }));
-                        setProfileMessage(null);
-                        setProfileMessageType(null);
-                      }}
-                      className="panel-outline rounded-xl bg-white px-3 py-2.5 text-sm"
-                    >
-                      {hairTypeOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-ink/65">
-                    Cosmetic concern
-                    <div className="rounded-[22px] bg-white p-3 panel-outline">
-                      <div className="flex flex-wrap gap-2">
-                        {cosmeticConcernOptions
-                          .filter((option) => option !== "none")
-                          .map((option) => {
-                            const active = profileForm.cosmeticConcerns.includes(option);
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                onClick={() => {
-                                  setProfileForm((current) => ({
-                                    ...current,
-                                    cosmeticConcerns: current.cosmeticConcerns.includes(option)
-                                      ? current.cosmeticConcerns.filter((item) => item !== option)
-                                      : [...current.cosmeticConcerns, option]
-                                  }));
-                                  setProfileMessage(null);
-                                  setProfileMessageType(null);
-                                }}
-                                className={`rounded-full px-3 py-2 text-sm font-medium ${
-                                  active ? "bg-[#2563eb] text-white" : "bg-[#edf4f8] text-ink/70"
-                                }`}
-                              >
-                                {option.replace(/-/g, " ")}
-                              </button>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
+                  <textarea
+                    value={profileForm.medicalCondition}
+                    onChange={(event) => setProfileForm((current) => ({ ...current, medicalCondition: event.target.value }))}
+                    rows={3}
+                    placeholder="Extra medical or sensitivity note"
+                    className="rounded-[16px] border border-[#d8e3f0] bg-[#f8fbff] px-4 py-3 text-sm outline-none"
+                  />
 
-              {profileMessage ? (
-                <div className={`rounded-2xl px-4 py-3 text-sm ${profileMessageType === "success" ? "bg-sea/10 text-sea" : "bg-red-50 text-red-600"}`}>
-                  {profileMessage}
-                </div>
-              ) : null}
-
-              <button
-                onClick={() => saveProfile.mutate()}
-                disabled={!canSaveProfile}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ink px-5 py-4 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saveProfile.isPending ? (editingProfileId ? "Updating..." : "Saving...") : editingProfileId ? "Update profile" : "Save profile"}
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-
-          <div className="glass-card p-6 md:p-7">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="section-title text-sm font-semibold uppercase text-ink/45">Saved profiles</p>
-                <h2 className="mt-3 font-display text-3xl font-semibold">Ready-to-analyze people and their active allergy sets.</h2>
-              </div>
-              <div className="hidden rounded-full bg-ink px-4 py-2 text-sm font-medium text-white md:flex">{profilesQuery.data?.length ?? 0} active</div>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {profilesQuery.data?.length ? (
-                profilesQuery.data.map((profile) => {
-                  const selected = selectedProfileIds.includes(profile.id);
-                  return (
-                    <article key={profile.id} className="spotlight-card rounded-[30px] border border-ink/8 p-5 shadow-sm shadow-ink/5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">
-                            {selected ? "Selected" : "Saved profile"}
-                          </div>
-                          <h3 className="mt-3 font-display text-[2rem] font-semibold leading-none">{profile.name}</h3>
-                          <p className="mt-2 text-sm text-ink/55">Age {profile.age}</p>
-                        </div>
-                        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1 xl:grid-cols-2">
-                          <button
-                            type="button"
-                            onClick={() => startEditingProfile(profile)}
-                            className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink/70 shadow-sm"
-                          >
-                            <Pencil size={14} />
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPendingDeleteProfile(profile)}
-                            className="inline-flex items-center justify-center gap-2 rounded-full bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-red-600"
-                          >
-                            <Trash2 size={14} />
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        {profile.allergySettings.map((setting) => (
-                          <span key={`${profile.id}-${setting.category}`} className="rounded-full bg-white px-3 py-2 text-sm text-ink/75 shadow-sm">
-                            {setting.category} • {setting.severity}
-                          </span>
-                        ))}
-                      </div>
-
-                      {profile.medicalConditions?.length ? (
-                        <div className="mt-5 grid gap-3">
-                          {profile.medicalConditions.find((entry) => !entry.note)?.name ? (
-                            <div className="rounded-[20px] bg-white/80 px-4 py-3 text-sm text-ink/65 panel-outline">
-                              Medical note: {profile.medicalConditions.find((entry) => !entry.note)?.name}
-                            </div>
-                          ) : null}
-                          <div className="flex flex-wrap gap-2">
-                            <span className="rounded-full bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
-                              Gender: {normalizeGender(readProfileNote(profile.medicalConditions, "gender"))}
-                            </span>
-                            <span className="rounded-full bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700">
-                              Skin: {readProfileNote(profile.medicalConditions, "skinType") || "normal"}
-                            </span>
-                            <span className="rounded-full bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700">
-                              Hair: {readProfileNote(profile.medicalConditions, "hairType") || "straight"}
-                            </span>
-                            {readProfileNotes(profile.medicalConditions, "cosmeticConcern").map((concern) => (
-                              <span key={`${profile.id}-${concern}`} className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
-                                Focus: {concern}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })
-              ) : (
-                <div className="rounded-[28px] bg-[#edf4f8] p-6 text-sm text-ink/60">No profiles yet. Create your first allergy profile to unlock analysis and live product filtering.</div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section id="analysis" className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-          <ImageCapturePanel ingredientText={ingredientText} setIngredientText={setIngredientText} />
-          <div className="glass-card p-6 md:p-7">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="section-title text-sm font-semibold uppercase text-ink/45">Allergen analysis</p>
-                <h2 className="mt-3 max-w-2xl font-display text-3xl font-semibold">Review extracted ingredient text, then run predictions for one profile or the whole account.</h2>
-              </div>
-              <button
-                onClick={runAnalysis}
-                disabled={!canRunAnalysis}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#2563eb] px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Analyze now
-                <ArrowRight size={18} />
-              </button>
-            </div>
-            <div className="mt-5 rounded-[28px] border border-[#d7e2eb] bg-white p-4 panel-outline">
-              <p className="text-sm font-medium text-ink/60">Run analysis for</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {productLensOptions.map((option) => {
-                  const active = productLens === option;
-                  const title = option === "cosmetic" ? "Cosmetic" : "Packaged food";
-                  const description =
-                    option === "cosmetic" ? "Analyze personal care, hair care, and skin care ingredients." : "Analyze pantry, snack, and ready-made food labels.";
-
-                  return (
-                    <button
-                      key={`analysis-lens-${option}`}
-                      onClick={() => setProductLens(option)}
-                      className={`rounded-[20px] px-4 py-3 text-left ${active ? "bg-[#0f172a] text-white" : "bg-[#edf4f8] text-[#334155]"}`}
-                    >
-                      <p className="font-semibold">{title}</p>
-                      <p className={`mt-1 text-sm ${active ? "text-white/75" : "text-ink/55"}`}>{description}</p>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  onClick={() => setAnalysisScope("selected")}
-                  className={`rounded-[20px] px-4 py-3 text-left ${analysisScope === "selected" ? "bg-[#0f172a] text-white" : "bg-[#edf4f8] text-[#334155]"}`}
-                >
-                  <p className="font-semibold">Selected profiles</p>
-                  <p className={`mt-1 text-sm ${analysisScope === "selected" ? "text-white/75" : "text-ink/55"}`}>Analyze only the profiles you choose below.</p>
-                </button>
-                <button
-                  onClick={() => setAnalysisScope("all")}
-                  className={`rounded-[20px] px-4 py-3 text-left ${analysisScope === "all" ? "bg-[#2563eb] text-white" : "bg-[#edf4f8] text-[#334155]"}`}
-                >
-                  <p className="font-semibold">All profiles</p>
-                  <p className={`mt-1 text-sm ${analysisScope === "all" ? "text-white/80" : "text-ink/55"}`}>Run separate predictions for every saved profile at once.</p>
-                </button>
-              </div>
-              {analysisScope === "selected" ? (
-                <div className="mt-3 rounded-2xl bg-[#f1f7fb] px-4 py-3 text-sm text-ink/60">
-                  <p className="font-medium text-ink/65">Choose one or more profiles before analyzing</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {profilesQuery.data?.length ? (
-                      profilesQuery.data.map((profile) => {
-                        const active = selectedProfileIds.includes(profile.id);
+                  <div className="rounded-[18px] bg-[#f5f8fd] p-3">
+                    <p className="text-sm font-semibold text-[#173251]">Cosmetic concerns</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {cosmeticConcernOptions.map((concern) => {
+                        const active = profileForm.cosmeticConcerns.includes(concern);
                         return (
                           <button
-                            key={`analysis-profile-${profile.id}`}
+                            key={concern}
+                            type="button"
                             onClick={() =>
-                              setSelectedProfileIds((current) =>
-                                active ? current.filter((item) => item !== profile.id) : [...current, profile.id]
-                              )
+                              setProfileForm((current) => ({
+                                ...current,
+                                cosmeticConcerns: active
+                                  ? current.cosmeticConcerns.filter((item) => item !== concern)
+                                  : [...current.cosmeticConcerns, concern]
+                              }))
                             }
-                            className={`rounded-full px-4 py-2 text-sm font-medium ${active ? "bg-[#0f172a] text-white" : "bg-white text-[#334155]"}`}
+                            className={`rounded-full px-3 py-2 text-xs font-semibold ${
+                              active ? "bg-[#0d53a9] text-white" : "bg-white text-[#536d89]"
+                            }`}
                           >
-                            {profile.name}
+                            {concern}
                           </button>
                         );
-                      })
-                    ) : (
-                      <span className="rounded-full bg-white px-4 py-2 text-sm text-ink/60">No profiles available yet.</span>
-                    )}
+                      })}
+                    </div>
                   </div>
-                  <p className="mt-3 text-sm text-ink/55">
-                    {selectedProfileIds.length
-                      ? `Using ${selectedProfileIds.length} chosen profile${selectedProfileIds.length > 1 ? "s" : ""} for this analysis.`
-                      : "Select at least one profile or switch to all profiles."}
-                  </p>
+
+                  {profileMessage ? (
+                    <div className={`rounded-[16px] px-4 py-3 text-sm ${profileMessageType === "error" ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+                      {profileMessage}
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => saveProfile.mutate()}
+                    disabled={saveProfile.isPending}
+                    className="rounded-[16px] bg-[#0d53a9] px-4 py-3 text-base font-semibold text-white disabled:opacity-50"
+                  >
+                    {saveProfile.isPending ? "Saving..." : editingProfileId ? "Update profile" : "Add profile"}
+                  </button>
                 </div>
-              ) : null}
-            </div>
-            {analysisMessage ? <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">{analysisMessage}</div> : null}
-            <div className="mt-5 rounded-[30px] border border-ink/8 bg-gradient-to-br from-white to-[#f7fafc] p-4 shadow-sm shadow-ink/5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-ink/60">Normalized ingredient input</p>
-                <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white">
-                  {ingredientText.trim() ? "Ready" : "Waiting"}
-                </span>
-              </div>
-              <textarea
-                value={ingredientText}
-                onChange={(event) => setIngredientText(event.target.value)}
-                placeholder="OCR text appears here, or paste packed food / cosmetic ingredients manually"
-                className="panel-outline mt-4 min-h-56 w-full rounded-[24px] bg-white px-4 py-4"
-              />
-            </div>
-            <AnalysisResults predictions={analysisResults} loading={analyzeMutation.isPending} />
-          </div>
-        </section>
+              </section>
 
-        <section id="search">
-          <ProductSearchPanel
-            userId={userId}
-            profileIds={selectedProfileIds}
-            profiles={(profilesQuery.data ?? []).map((profile) => ({ id: profile.id, name: profile.name }))}
-            initialQuery={productQuery}
-            lens={productLens}
-            setLens={setProductLens}
-          />
-        </section>
-      </main>
-
-      <SafetyChatWidget userId={userId} profileIds={selectedProfileIds} lens={productLens} setLens={setProductLens} />
-
-      {pendingDeleteProfile ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/45 px-4">
-          <div className="w-full max-w-md rounded-[30px] border border-white/70 bg-white/92 p-6 shadow-panel backdrop-blur-xl">
-            <p className="section-title text-sm font-semibold uppercase text-ink/45">Delete profile</p>
-            <h3 className="mt-2 font-display text-2xl font-semibold">Remove {pendingDeleteProfile.name}?</h3>
-            <p className="mt-3 text-sm text-ink/65">This removes the profile and its linked allergy settings from your account history.</p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button onClick={() => setPendingDeleteProfile(null)} className="rounded-2xl bg-[#edf4f8] px-5 py-3 font-medium text-ink">
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  deleteProfile.mutate(pendingDeleteProfile.id);
-                  setPendingDeleteProfile(null);
-                }}
-                className="rounded-2xl bg-red-600 px-5 py-3 font-medium text-white"
-              >
-                Delete profile
-              </button>
+              <section className="space-y-3">
+                {(profilesQuery.data ?? []).map((profile) => (
+                  <article key={profile.id} className="rounded-[24px] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-12 w-12 place-items-center rounded-[18px] bg-[#edf3fb] text-[#0d53a9]">
+                          <CircleUserRound size={24} />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#173251]">{profile.name}</p>
+                          <p className="text-sm text-[#607992]">Age {profile.age}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEditingProfile(profile)}
+                          className="rounded-[12px] bg-[#edf3fb] px-3 py-2 text-xs font-semibold text-[#0d53a9]"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Delete ${profile.name}?`)) {
+                              deleteProfile.mutate(profile.id);
+                            }
+                          }}
+                          className="rounded-[12px] bg-[#ffe9ea] px-3 py-2 text-xs font-semibold text-[#c53c47]"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {profile.allergySettings.map((setting) => (
+                        <span key={`${profile.id}-${setting.category}`} className="rounded-full bg-[#f5f8fd] px-3 py-2 text-xs font-semibold text-[#516b86]">
+                          {setting.category} · {setting.severity}
+                        </span>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </section>
             </div>
-          </div>
-        </div>
-      ) : null}
+          ) : null}
+        </main>
+
+        <MobileBottomNav
+          activeScreen={activeScreen}
+          onChange={(screen) => {
+            setActiveScreen(screen);
+          }}
+        />
+      </div>
     </div>
   );
 }
-

@@ -136,25 +136,29 @@ export function ImageCapturePanel({
   }
 
   return (
-    <div className="glass-card border border-[#d7e2eb] bg-white/95 p-6 md:p-7">
-      <div className="flex items-start justify-between gap-4">
+    <div className="rounded-[24px] border border-[#d7e2eb] bg-white p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="section-title text-sm font-semibold uppercase text-ink/45">OCR capture</p>
-          <h2 className="mt-3 font-display text-3xl font-semibold">Capture a label with your camera or upload an ingredient image.</h2>
-          <p className="mt-3 text-sm leading-7 text-ink/65">Tesseract.js extracts text in the browser, then the backend normalizes and scores allergen risk profile by profile.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6d8399]">OCR capture</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold leading-tight text-[#173251]">
+            Capture a label or upload an ingredient image.
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#607992]">
+            Tesseract extracts text in the browser, then the backend normalizes and scores allergen risk profile by profile.
+          </p>
         </div>
-        <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-[#0f172a] text-white md:flex">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[16px] bg-[#edf3fb] text-[#0d53a9]">
           <Sparkles size={18} />
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <label className="spotlight-card panel-outline rounded-[28px] bg-white p-5 text-center shadow-sm shadow-ink/5">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e4f6f0] text-[#24695d]">
+      <div className="mt-4 grid gap-3">
+        <label className="rounded-[22px] border border-[#d8e3f0] bg-[#f8fbff] p-4 text-center">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-[16px] bg-[#e4f6f0] text-[#24695d]">
             <ImageUp />
           </div>
-          <p className="mt-4 font-semibold">Upload ingredient label</p>
-          <p className="mt-2 text-sm text-ink/55">PNG, JPG, or close-up packaging image</p>
+          <p className="mt-3 text-base font-semibold text-[#173251]">Upload ingredient label</p>
+          <p className="mt-1 text-sm text-[#607992]">PNG, JPG, or close-up packaging image</p>
           <input
             type="file"
             accept="image/*"
@@ -168,21 +172,21 @@ export function ImageCapturePanel({
           />
         </label>
 
-        <div className="mesh-panel rounded-[28px] p-5 text-white">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10 text-white">
+        <div className="rounded-[22px] bg-[#0d53a9] p-4 text-white shadow-[0_14px_28px_rgba(13,83,169,0.24)]">
+          <div className="grid h-12 w-12 place-items-center rounded-[16px] bg-white/12 text-white">
             <Camera />
           </div>
-          <p className="mt-4 font-semibold">Camera capture</p>
-          <p className="mt-2 text-sm text-white/70">Use live capture when the ingredient list is only visible on-pack.</p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button onClick={startCamera} className="rounded-full bg-white px-4 py-2 text-sm font-medium text-ink">
+          <p className="mt-3 text-base font-semibold">Camera capture</p>
+          <p className="mt-1 text-sm text-white/78">Use live capture when the ingredient list is only visible on-pack.</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <button onClick={startCamera} className="rounded-[14px] bg-white px-4 py-3 text-sm font-medium text-ink">
               {streaming ? "Restart camera" : "Start camera"}
             </button>
-            <button onClick={captureFrame} className="rounded-full bg-[#2563eb] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!streaming || loading}>
+            <button onClick={captureFrame} className="rounded-[14px] bg-[#2563eb] px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={!streaming || loading}>
               Capture and scan
             </button>
             {streaming ? (
-              <button onClick={stopCamera} className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white">
+              <button onClick={stopCamera} className="rounded-[14px] border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium text-white">
                 Stop camera
               </button>
             ) : null}
@@ -190,11 +194,11 @@ export function ImageCapturePanel({
         </div>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-[28px] bg-[#0f172a] p-4 text-white shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
+      <div className="mt-4 overflow-hidden rounded-[22px] bg-[#0f172a] p-3 text-white shadow-[0_18px_36px_rgba(15,23,42,0.18)]">
         {preview ? (
-          <img src={preview} alt="Captured label" className="h-64 w-full rounded-[22px] object-cover" />
+          <img src={preview} alt="Captured label" className="h-52 w-full rounded-[18px] object-cover" />
         ) : (
-          <div className="grid h-64 place-items-center rounded-[22px] border border-dashed border-white/15 text-center">
+          <div className="grid h-52 place-items-center rounded-[18px] border border-dashed border-white/15 px-4 text-center">
             <div>
               <ScanLine className="mx-auto" />
               <p className="mt-3 text-sm text-white/65">Label preview appears here after upload or capture</p>
@@ -203,16 +207,16 @@ export function ImageCapturePanel({
         )}
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-[24px] bg-black/85">
+      <div className="mt-3 overflow-hidden rounded-[20px] bg-black/85">
         {streaming ? (
-          <video ref={videoRef} className="h-56 w-full object-cover" muted playsInline autoPlay />
+          <video ref={videoRef} className="h-44 w-full object-cover" muted playsInline autoPlay />
         ) : (
-          <div className="grid h-56 place-items-center text-sm text-white/60">Start the camera to preview a live label here.</div>
+          <div className="grid h-44 place-items-center px-4 text-center text-sm text-white/60">Start the camera to preview a live label here.</div>
         )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
-      {cameraError ? <div className="mt-4 rounded-[22px] bg-red-50 px-4 py-3 text-sm text-red-600">{cameraError}</div> : null}
-      <div className="panel-outline mt-4 rounded-[22px] bg-white/80 p-4 text-sm text-ink/65">
+      {cameraError ? <div className="mt-3 rounded-[18px] bg-red-50 px-4 py-3 text-sm text-red-600">{cameraError}</div> : null}
+      <div className="mt-3 rounded-[18px] bg-[#f5f8fd] p-4 text-sm text-[#607992]">
         {loading ? "Running OCR on the current image..." : ingredientText ? "OCR text is ready for analysis. You can review and edit it before sending." : "No OCR text extracted yet."}
       </div>
     </div>

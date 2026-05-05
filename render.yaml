@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: clearaller-vision-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build --workspace shared && npm run prisma:generate --workspace backend && npm run build --workspace backend
+    preDeployCommand: npm run prisma:migrate:deploy --workspace backend
+    startCommand: npm run start --workspace backend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENFOODFACTS_BASE_URL
+        value: https://world.openfoodfacts.org
+      - key: PUBCHEM_BASE_URL
+        value: https://pubchem.ncbi.nlm.nih.gov
+      - key: FDA_BASE_URL
+        value: https://api.fda.gov
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: SARVAM_CHAT_MODEL
+        value: sarvam-30b

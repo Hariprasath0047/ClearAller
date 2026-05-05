@@ -14,8 +14,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@clearaller/shared": ["../shared/src/index.ts"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "../shared/src"],
   "references": []
 }
